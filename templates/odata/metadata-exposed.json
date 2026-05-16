@@ -1,0 +1,50 @@
+{
+  "id": "bwr-odata-001-metadata-exposed",
+  "name": "OData $metadata document reachable without authentication",
+  "description": "Probes /$metadata on the target. OData's CSDL metadata document describes every entity set, navigation property, and function — a complete schema-disclosure vector. Equivalent to GraphQL introspection or gRPC reflection: in production it lets unauthenticated callers map the entire service catalogue without ever invoking a real endpoint. Many ASP.NET / Apache Olingo / SAP / Microsoft OData deployments ship $metadata open by default for client tooling discovery.",
+  "createdAt": 1747526400000,
+  "recordingFormatVersion": 2,
+  "attack": true,
+  "vulnerability": {
+    "id": "BWR-ODATA-001",
+    "cwe": "CWE-200",
+    "owaspApi": "API3-2023-BOPLA",
+    "severity": "medium",
+    "cvss": 5.3,
+    "protocols": ["odata"],
+    "authors": ["thomas-stegemann"],
+    "introduced": "2026-05-17",
+    "references": [
+      "https://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_MetadataDocumentRequest",
+      "https://owasp.org/API-Security/editions/2023/en/0xa3-broken-object-property-level-authorization/"
+    ],
+    "remediation": "Gate /$metadata behind the same authentication policy that protects the data endpoints. ASP.NET Core OData: `services.AddControllers().AddOData(opt => opt.AddRouteComponents(\"odata\", builder.GetEdmModel()))` followed by `app.MapControllers().RequireAuthorization()` — the OData routing inherits the policy. SAP Gateway: configure the metadata cache + auth check via /IWFND/MAINT_SERVICE. For public APIs where schema disclosure is acceptable, document the choice explicitly and accept the finding (use `--exclude bwr-odata-001`)."
+  },
+  "steps": [
+    {
+      "id": "probe-1",
+      "capturedAt": 1747526400000,
+      "protocol": "odata",
+      "service": "metadata",
+      "method": "GET /$metadata",
+      "methodType": "Unary",
+      "httpVerb": "GET",
+      "httpPath": "/$metadata",
+      "metadata": { "Accept": "application/xml" },
+      "messages": [],
+      "status": "OK"
+    }
+  ],
+  "vulnerableWhen": {
+    "allOf": [
+      { "status": 200 },
+      {
+        "anyOf": [
+          { "bodyContains": "<edmx:Edmx" },
+          { "bodyContains": "<EntityType" },
+          { "bodyContains": "Microsoft.OData" }
+        ]
+      }
+    ]
+  }
+}

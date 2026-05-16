@@ -1,0 +1,128 @@
+# CI validation for the Bowire vulnerability template corpus.
+#
+# Every PR runs two passes per template:
+#   1. Schema validation — file parses as a Bowire recording with
+#      `attack: true` + populated `vulnerability` + `vulnerableWhen`.
+#   2. Positive test — the template MUST fire against the
+#      Kuestenlogik.Bowire.Samples.Vulnerable sample app (deliberately
+#      misconfigured to trip every shipped finding).
+#
+# A negative-test pass (template stays quiet against a hardened target)
+# would slot in here too once a hardened-by-design sample exists. For
+# now the negative case is implicit — review-time human judgement on
+# whether the `vulnerableWhen` predicate is too loose.
+#
+# Schedule the validate run on every PR + weekly cron so a regression
+# in either the scanner OR the sample surfaces within a week.
+name: Validate templates
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'templates/**'
+      - '.github/workflows/validate.yml'
+  schedule:
+    # Sunday 03:00 UTC — picks up drift between the scanner / sample /
+    # corpus when none of the three has had a PR in a while.
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+
+jobs:
+  schema:
+    name: Schema validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install bowire CLI
+        run: dotnet tool install -g Kuestenlogik.Bowire.Tool
+
+      - name: Lint every template
+        # `bowire scan --template <file> --target http://invalid.invalid`
+        # exits 2 with a parse error on malformed templates and exits 0
+        # (with a "could not connect" error finding) on well-formed
+        # ones. The shell wrapper distinguishes the two — exit 2 means
+        # the file failed schema validation; everything else is fine
+        # for this lint pass.
+        run: |
+          set +e
+          fail=0
+          for f in $(find templates -name '*.json'); do
+            echo "::group::Validating $f"
+            bowire scan --target http://invalid.invalid --template "$f" --no-builtins --scope "invalid.invalid" 2>&1 | head -5
+            rc=$?
+            # exit 2 = usage / parse failure. exit 0 / 1 = template loaded fine
+            # (1 just means a finding fired, which can't happen here against
+            # invalid.invalid). Anything else means a real exception.
+            if [ "$rc" = "2" ]; then
+              echo "::error file=$f::Template failed schema validation"
+              fail=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $fail
+
+  positive:
+    name: Positive — must fire against vulnerable sample
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install bowire CLI
+        run: dotnet tool install -g Kuestenlogik.Bowire.Tool
+
+      - name: Check out vulnerable sample
+        uses: actions/checkout@v4
+        with:
+          repository: Kuestenlogik/Bowire.Samples
+          path: bowire-samples
+
+      - name: Start vulnerable sample
+        run: |
+          cd bowire-samples
+          # Background; redirect logs so they don't block the workflow shell.
+          dotnet run --project src/Kuestenlogik.Bowire.Samples.Vulnerable -c Release > sample.log 2>&1 &
+          echo "sample_pid=$!" >> $GITHUB_ENV
+          # Wait until the listener is up. 5140 is the sample's documented
+          # bind port.
+          for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+            if curl -k -sS https://localhost:5140 -o /dev/null; then
+              echo "Sample is up after ${i}s"; exit 0
+            fi
+            sleep 1
+          done
+          cat sample.log
+          echo "Sample didn't come up in 15s"; exit 1
+
+      - name: Run full corpus against sample
+        run: |
+          bowire scan --target https://localhost:5140 \
+                      --corpus templates \
+                      --allow-self-signed-certs \
+                      --scope localhost \
+                      --out findings.sarif
+
+      - name: Stop sample
+        if: always()
+        run: |
+          if [ -n "$sample_pid" ]; then
+            kill "$sample_pid" || true
+          fi
+
+      - name: Upload SARIF
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: findings-sarif
+          path: findings.sarif

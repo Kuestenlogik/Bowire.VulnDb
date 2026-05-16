@@ -1,0 +1,45 @@
+{
+  "id": "bwr-graphql-003-field-suggestion-leak",
+  "name": "GraphQL error responses leak schema field suggestions",
+  "description": "When a query references a non-existent field, most GraphQL servers respond with 'Did you mean \"<closest>\"?' — a friendly debugging aid for developers, but a schema-enumeration vector for anyone with network access. The suggestions reveal real field names without requiring introspection. Useful as a backup-channel attack after introspection has been disabled.",
+  "createdAt": 1747526400000,
+  "recordingFormatVersion": 2,
+  "attack": true,
+  "vulnerability": {
+    "id": "BWR-GRAPHQL-003",
+    "cwe": "CWE-200",
+    "owaspApi": "API3-2023-BOPLA",
+    "severity": "low",
+    "cvss": 3.7,
+    "protocols": ["graphql"],
+    "authors": ["thomas-stegemann"],
+    "introduced": "2026-05-17",
+    "references": [
+      "https://blog.doyensec.com/2018/05/17/graphql-security-overview.html",
+      "https://github.com/dolevf/graphw00f/blob/main/docs/field_suggestions.md"
+    ],
+    "remediation": "Disable field-suggestions in production. HotChocolate: set `IRequestExecutorBuilder.ModifyRequestOptions(o => o.IncludeExceptionDetails = false)` and configure a custom IErrorFilter that strips 'Did you mean' messages. Apollo: `formatError: err => { if (/Did you mean/.test(err.message)) return new Error('Bad Request'); return err; }`. Strawberry: same pattern via the error formatter."
+  },
+  "steps": [
+    {
+      "id": "probe-1",
+      "capturedAt": 1747526400000,
+      "protocol": "graphql",
+      "service": "graphql",
+      "method": "field-suggestion",
+      "methodType": "Unary",
+      "httpVerb": "POST",
+      "httpPath": "/graphql",
+      "metadata": { "Accept": "application/json" },
+      "body": "{\"query\":\"{ usre { id } }\"}",
+      "messages": [],
+      "status": "OK"
+    }
+  ],
+  "vulnerableWhen": {
+    "anyOf": [
+      { "bodyMatches": "Did you mean ['\"]" },
+      { "bodyMatches": "did you mean ['\"]" }
+    ]
+  }
+}

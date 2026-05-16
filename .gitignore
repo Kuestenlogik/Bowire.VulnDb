@@ -1,0 +1,17 @@
+# Per-developer scratch space for handwritten / private templates
+# operators keep alongside the public corpus. The convention from
+# CONTRIBUTING.md is: `templates/` is public, anything else stays out.
+templates-local/
+*.local.json
+
+# Scanner output
+findings.sarif
+findings-*.sarif
+
+# Build / IDE
+.vs/
+.vscode/
+.idea/
+bin/
+obj/
+*.user

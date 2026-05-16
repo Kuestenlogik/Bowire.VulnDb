@@ -1,0 +1,50 @@
+{
+  "id": "bwr-rest-002-trace-method-allowed",
+  "name": "HTTP TRACE method enabled — Cross-Site Tracing (XST) vector",
+  "description": "Sends an HTTP TRACE request to the target root. Servers that echo the request back (RFC 7231 default behaviour) enable Cross-Site Tracing — a classic XST attack where a malicious cross-origin script triggers a TRACE from the victim's browser and reads the echo of HttpOnly cookies / Authorization headers the script normally can't touch. Modern browsers block fetch-driven TRACE since ~2007, but Flash/SilverlightActiveX-vintage clients and certain proxy chains still allow it; the better fix is server-side disable.",
+  "createdAt": 1747526400000,
+  "recordingFormatVersion": 2,
+  "attack": true,
+  "vulnerability": {
+    "id": "BWR-REST-002",
+    "cwe": "CWE-693",
+    "owaspApi": "API8-2023-SECMISCONF",
+    "severity": "low",
+    "cvss": 3.1,
+    "protocols": ["rest", "http"],
+    "authors": ["thomas-stegemann"],
+    "introduced": "2026-05-17",
+    "references": [
+      "https://owasp.org/www-community/attacks/Cross_Site_Tracing",
+      "https://datatracker.ietf.org/doc/html/rfc7231#section-4.3.8"
+    ],
+    "remediation": "Disable the TRACE method at the server / load balancer. nginx: `if ($request_method = TRACE) { return 405; }` in the relevant location block. ASP.NET Core / Kestrel: TRACE is opt-in via routing; just don't map a TRACE handler (the default 404 is fine). IIS: <verbs allowUnlisted=\"false\"> in <handlers>, or use the URL Rewrite module to reject TRACE. AWS ALB / CloudFront: WAF rule blocking the verb."
+  },
+  "steps": [
+    {
+      "id": "probe-1",
+      "capturedAt": 1747526400000,
+      "protocol": "http",
+      "service": "root",
+      "method": "TRACE /",
+      "methodType": "Unary",
+      "httpVerb": "TRACE",
+      "httpPath": "/",
+      "metadata": { "X-Bowire-Trace-Marker": "vulndb-bwr-rest-002" },
+      "messages": [],
+      "status": "OK"
+    }
+  ],
+  "vulnerableWhen": {
+    "allOf": [
+      { "status": 200 },
+      {
+        "anyOf": [
+          { "headerEquals": { "Content-Type": "message/http" } },
+          { "bodyContains": "TRACE /" },
+          { "bodyContains": "X-Bowire-Trace-Marker" }
+        ]
+      }
+    ]
+  }
+}

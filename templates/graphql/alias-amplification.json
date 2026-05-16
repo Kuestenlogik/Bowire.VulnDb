@@ -1,0 +1,47 @@
+{
+  "id": "bwr-graphql-002-alias-amplification",
+  "name": "GraphQL allows aliased query amplification",
+  "description": "Sends a query that aliases the same field N times. GraphQL servers without a per-query alias-cap or query-complexity limit execute every alias independently — N requests' worth of work for one HTTP call. Combined with deep-nesting and/or batched queries this is a DoS amplifier; without batching it's still a CPU multiplier worth flagging because most GraphQL deployments don't gate aliases.",
+  "createdAt": 1747526400000,
+  "recordingFormatVersion": 2,
+  "attack": true,
+  "vulnerability": {
+    "id": "BWR-GRAPHQL-002",
+    "cwe": "CWE-770",
+    "owaspApi": "API4-2023-UNRESTRICTED",
+    "severity": "medium",
+    "cvss": 5.3,
+    "protocols": ["graphql"],
+    "authors": ["thomas-stegemann"],
+    "introduced": "2026-05-17",
+    "references": [
+      "https://github.com/dolevf/graphw00f/blob/main/docs/alias_overloading.md",
+      "https://escape.tech/blog/9-graphql-security-best-practices/"
+    ],
+    "remediation": "Configure a query-complexity limit or an explicit alias-count cap. HotChocolate: `.AddMaxAllowedFieldCycleDepth()` + `.AddMaxExecutionDepth()` and a custom IComplexityAnalyzerHandler that scores aliased fields. Apollo: `validationRules: [createComplexityRule({ maximumComplexity: 100 })]`. Verify by replaying the same probe and watching for an `errors` array with a complexity-limit message instead of N successful aliases."
+  },
+  "steps": [
+    {
+      "id": "probe-1",
+      "capturedAt": 1747526400000,
+      "protocol": "graphql",
+      "service": "graphql",
+      "method": "alias-amplification",
+      "methodType": "Unary",
+      "httpVerb": "POST",
+      "httpPath": "/graphql",
+      "metadata": { "Accept": "application/json" },
+      "body": "{\"query\":\"{ a:__typename b:__typename c:__typename d:__typename e:__typename f:__typename g:__typename h:__typename i:__typename j:__typename }\"}",
+      "messages": [],
+      "status": "OK"
+    }
+  ],
+  "vulnerableWhen": {
+    "allOf": [
+      { "status": 200 },
+      { "bodyJsonPath": { "path": "$.data.a", "exists": true } },
+      { "bodyJsonPath": { "path": "$.data.j", "exists": true } },
+      { "not": { "bodyJsonPath": { "path": "$.errors[*].message", "anyValueMatches": "complexity|depth|alias|too\\s+many" } } }
+    ]
+  }
+}
