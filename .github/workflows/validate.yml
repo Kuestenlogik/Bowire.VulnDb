@@ -108,7 +108,7 @@ jobs:
       - name: Run full corpus against sample
         run: |
           bowire scan --target https://localhost:5140 \
-                      --corpus templates \
+                      --templates templates \
                       --allow-self-signed-certs \
                       --scope localhost \
                       --out findings.sarif

@@ -16,14 +16,14 @@ dotnet tool install -g Kuestenlogik.Bowire.Tool
 git clone https://github.com/Kuestenlogik/Bowire.VulnDb.git ~/.bowire/vulndb
 
 # Run every template against your target
-bowire scan --target https://your-api.example.com --corpus ~/.bowire/vulndb/templates
+bowire scan --target https://your-api.example.com --templates ~/.bowire/vulndb/templates
 ```
 
 To run a single template (or one folder):
 
 ```bash
 bowire scan --target https://your-api.example.com --template templates/graphql/introspection-enabled.json
-bowire scan --target https://your-api.example.com --corpus templates/graphql
+bowire scan --target https://your-api.example.com --templates templates/graphql
 ```
 
 ## Corpus structure
