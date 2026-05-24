@@ -2,7 +2,7 @@
 
 **Community vulnerability database for the Bowire security scanner.**
 
-Multi-protocol API security templates that `bowire scan` consumes. One YAML/JSON file per known vulnerability or misconfiguration pattern; the scanner walks the corpus, replays each template's probe against a target, evaluates the predicate against the response, and emits findings.
+Multi-protocol API security templates that `bowire scan` consumes. One YAML/JSON file per known vulnerability or misconfiguration pattern; the scanner walks the templates, replays each one's probe against a target, evaluates the predicate against the response, and emits findings.
 
 Anchor repo for the security-testing lane defined in [Bowire's ADR](https://github.com/Kuestenlogik/Bowire/blob/main/docs/architecture/security-testing.md). MIT-licensed; community contributions welcome via PR.
 
@@ -12,7 +12,7 @@ Anchor repo for the security-testing lane defined in [Bowire's ADR](https://gith
 # Install bowire (skip if you already have it)
 dotnet tool install -g Kuestenlogik.Bowire.Tool
 
-# Clone the vulndb corpus
+# Clone the templates
 git clone https://github.com/Kuestenlogik/Bowire.VulnDb.git ~/.bowire/vulndb
 
 # Run every template against your target
@@ -26,7 +26,7 @@ bowire scan --target https://your-api.example.com --template templates/graphql/i
 bowire scan --target https://your-api.example.com --templates templates/graphql
 ```
 
-## Corpus structure
+## Template tree
 
 ```
 templates/
@@ -104,4 +104,6 @@ PRs that don't satisfy both passes are blocked. See [`.github/workflows/validate
 
 ## License
 
-MIT (see [`LICENSE`](LICENSE)). Templates are factual descriptions of public vulnerabilities and misconfigurations; the format itself is the contribution.
+**MIT** (see [`LICENSE`](LICENSE)).
+
+Why MIT here, when every other Bowire repo is Apache 2.0? This repo is a template set, not software. The scanner that consumes the templates is Apache 2.0 in [`Kuestenlogik/Bowire`](https://github.com/Kuestenlogik/Bowire); the JSON files in this repo describe known-public vulnerabilities and misconfigurations. The de-facto convention for security-template sets is MIT — [`projectdiscovery/nuclei-templates`](https://github.com/projectdiscovery/nuclei-templates) ships under MIT, and Bowire's scanner reads both sets through the same engine. Matching the convention keeps the two interchangeable. Templates are factual descriptions of public vulnerabilities and misconfigurations; the JSON shape itself is the contribution.

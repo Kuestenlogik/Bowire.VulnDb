@@ -122,7 +122,7 @@ One of `critical` / `high` / `medium` / `low` / `info`. Drives the scanner's `--
 
 ## Stable ids
 
-Once a template lands in the corpus, its `id` is frozen. CI dashboards (GitHub Code Scanning, GitLab Security Dashboard, Azure DevOps) group findings by id; renaming breaks the timeline of every customer who's already running the scanner.
+Once a template lands here, its `id` is frozen. CI dashboards (GitHub Code Scanning, GitLab Security Dashboard, Azure DevOps) group findings by id; renaming breaks the timeline of every customer who's already running the scanner.
 
 ## Protocol identifiers
 
@@ -145,4 +145,4 @@ The `vulnerability.protocols` array uses these canonical strings:
 - `surgewave`
 - `akka`
 
-If your template applies to multiple, list them all — the scanner's protocol filtering happens at consumption time, not at corpus-load time.
+If your template applies to multiple, list them all — the scanner's protocol filtering happens at scan time, not at template-load time.

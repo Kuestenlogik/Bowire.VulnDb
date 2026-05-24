@@ -1,8 +1,8 @@
 # Contributing to Bowire.VulnDb
 
-Thanks for considering a template contribution. The corpus only stays useful if it grows with the protocols, frameworks, and CVEs the security community is actively watching — your PR is the mechanism.
+Thanks for considering a template contribution. The template set only stays useful if it grows with the protocols, frameworks, and CVEs the security community is actively watching — your PR is the mechanism.
 
-## What goes in the corpus
+## What belongs in this repo
 
 A template belongs here if it probes for **a publicly-known vulnerability or misconfiguration pattern** against a multi-protocol API. Concretely:
 
@@ -14,7 +14,7 @@ A template belongs here if it probes for **a publicly-known vulnerability or mis
 What does NOT belong:
 
 - ❌ 0-day exploits (PR them to the affected vendor first, then here once the advisory is public)
-- ❌ Org-internal proprietary findings (use a private corpus directory — `~/.bowire/vulndb-local/` is the convention)
+- ❌ Org-internal proprietary findings (use a private template directory — `~/.bowire/vulndb-local/` is the convention)
 - ❌ Functional API tests (use the regular `bowire test` harness instead)
 - ❌ DoS / load-test patterns that send large traffic volume against the target
 
