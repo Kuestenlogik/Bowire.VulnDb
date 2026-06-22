@@ -1,0 +1,88 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Kuestenlogik.Bowire.VulnDb — the curated Bowire security-template
+    corpus shipped as a NuGet so any Bowire consumer (CLI scanner,
+    embedded workbench, custom host) can resolve the built-in
+    templates without cloning the repo.
+
+    The templates themselves are pure JSON under templates/<protocol>/
+    <name>.json — there's no protocol code in this package. To make
+    them addressable from .NET we (a) embed every JSON file as a
+    manifest resource and (b) expose a tiny BowireVulnDb static class
+    that enumerates + reads them. Non-.NET consumers (Python / Go /
+    Rust scanners, air-gapped use cases) grab the templates as a
+    tarball attached to the GitHub Release instead — the same
+    corpus, just packaged for a different runtime.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Package metadata -->
+    <PackageId>Kuestenlogik.Bowire.VulnDb</PackageId>
+    <Authors>Küstenlogik</Authors>
+    <Company>Küstenlogik</Company>
+    <Description>Curated Bowire security-test templates — GraphQL introspection, gRPC server-reflection, REST trace-method, OData metadata-exposed, &amp;c. Ships every template as both an embedded resource (typed .NET API) and as a content file. Use with the Bowire scanner plugin or any IBowireScanner-compatible consumer.</Description>
+    <PackageTags>bowire;security;vulndb;templates;owasp;scanner;graphql;grpc;rest;odata</PackageTags>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/Kuestenlogik/Bowire.VulnDb</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Kuestenlogik/Bowire.VulnDb</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+
+    <!-- Deterministic builds for reproducible nupkg hashes. -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Every JSON template under templates/<protocol>/ ships in two
+      forms in the nupkg:
+        - As a manifest resource — addressable from .NET via
+          GetManifestResourceStream("Kuestenlogik.Bowire.VulnDb.
+          templates.<protocol>.<name>.json"). Powers the typed
+          BowireVulnDb.GetTemplate / GetAllTemplateIds API.
+        - As a content file under contentFiles/any/any/templates/
+          — automatically copied to consumers' output dirs by
+          NuGet's contentFiles mechanism. Lets non-typed consumers
+          (a CLI, a script) read the JSON straight from disk.
+      LogicalName flattens the directory separator into a dot so
+      the manifest naming stays predictable; ContentResource has
+      its own naming convention for the disk-copy variant.
+    -->
+    <EmbeddedResource Include="templates\**\*.json">
+      <LogicalName>Kuestenlogik.Bowire.VulnDb.templates.%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+    <None Include="templates\**\*.json"
+          Pack="true"
+          PackagePath="contentFiles\any\any\templates\%(RecursiveDir)%(Filename)%(Extension)"
+          CopyToOutput="true"
+          BuildAction="Content" />
+
+    <!-- README ships inside the nupkg so nuget.org renders the
+         project description from the same source as the GitHub
+         page. -->
+    <None Include="README.md" Pack="true" PackagePath="\" />
+
+    <!-- Generated index file: travels with the package so
+         consumers don't need to walk the manifest at runtime. -->
+    <EmbeddedResource Include="templates-index.json" Condition="Exists('templates-index.json')">
+      <LogicalName>Kuestenlogik.Bowire.VulnDb.templates-index.json</LogicalName>
+    </EmbeddedResource>
+    <None Include="templates-index.json"
+          Condition="Exists('templates-index.json')"
+          Pack="true"
+          PackagePath="contentFiles\any\any\templates-index.json"
+          CopyToOutput="true"
+          BuildAction="Content" />
+  </ItemGroup>
+
+</Project>

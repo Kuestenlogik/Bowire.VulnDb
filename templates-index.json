@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "generatedAt": 0,
+  "count": 7,
+  "templates": [
+    {
+      "id": "bwr-graphql-001-introspection",
+      "path": "graphql/introspection-enabled.json",
+      "name": "GraphQL __schema introspection enabled in production",
+      "protocol": "graphql",
+      "protocols": [
+        "graphql"
+      ],
+      "severity": "medium",
+      "cvss": 5.3,
+      "cwe": "CWE-200",
+      "owaspApi": "API3-2023-BOPLA"
+    },
+    {
+      "id": "bwr-graphql-002-alias-amplification",
+      "path": "graphql/alias-amplification.json",
+      "name": "GraphQL allows aliased query amplification",
+      "protocol": "graphql",
+      "protocols": [
+        "graphql"
+      ],
+      "severity": "medium",
+      "cvss": 5.3,
+      "cwe": "CWE-770",
+      "owaspApi": "API4-2023-UNRESTRICTED"
+    },
+    {
+      "id": "bwr-graphql-003-field-suggestion-leak",
+      "path": "graphql/field-suggestion-leak.json",
+      "name": "GraphQL error responses leak schema field suggestions",
+      "protocol": "graphql",
+      "protocols": [
+        "graphql"
+      ],
+      "severity": "low",
+      "cvss": 3.7,
+      "cwe": "CWE-200",
+      "owaspApi": "API3-2023-BOPLA"
+    },
+    {
+      "id": "bwr-grpc-001-reflection",
+      "path": "grpc/server-reflection.json",
+      "name": "gRPC Server Reflection exposes internal services in production",
+      "protocol": "grpc",
+      "protocols": [
+        "grpc",
+        "grpc-web"
+      ],
+      "severity": "high",
+      "cvss": 7.5,
+      "cwe": "CWE-540",
+      "owaspApi": "API3-2023-BOPLA"
+    },
+    {
+      "id": "bwr-odata-001-metadata-exposed",
+      "path": "odata/metadata-exposed.json",
+      "name": "OData $metadata document reachable without authentication",
+      "protocol": "odata",
+      "protocols": [
+        "odata"
+      ],
+      "severity": "medium",
+      "cvss": 5.3,
+      "cwe": "CWE-200",
+      "owaspApi": "API3-2023-BOPLA"
+    },
+    {
+      "id": "bwr-rest-001-missing-security-headers",
+      "path": "rest/missing-security-headers.json",
+      "name": "REST endpoint missing baseline security headers",
+      "protocol": "rest",
+      "protocols": [
+        "rest",
+        "http"
+      ],
+      "severity": "low",
+      "cvss": 4.3,
+      "cwe": "CWE-693",
+      "owaspApi": "API8-2023-SECMISCONF"
+    },
+    {
+      "id": "bwr-rest-002-trace-method-allowed",
+      "path": "rest/trace-method-allowed.json",
+      "name": "HTTP TRACE method enabled — Cross-Site Tracing (XST) vector",
+      "protocol": "rest",
+      "protocols": [
+        "rest",
+        "http"
+      ],
+      "severity": "low",
+      "cvss": 3.1,
+      "cwe": "CWE-693",
+      "owaspApi": "API8-2023-SECMISCONF"
+    }
+  ]
+}

@@ -1,0 +1,150 @@
+name: Release
+
+# Tag-driven release pipeline for the Bowire VulnDb template corpus.
+#
+# Outputs per tag push:
+#   - Kuestenlogik.Bowire.VulnDb.<version>.nupkg → nuget.org +
+#     GitHub Packages. Embeds every templates/**/*.json as both a
+#     manifest resource and a contentFiles entry.
+#   - bowire-vulndb-templates-v<version>.tar.gz → GitHub Release
+#     asset. Non-.NET consumers (Python / Go / Rust scanners,
+#     air-gapped use cases) grab this instead of the NuGet.
+#   - templates-index.json → GitHub Release asset. Cheap to fetch,
+#     summarises every template's metadata so consumers can filter
+#     before downloading the full corpus.
+#
+# Trigger: push of a `v*` tag (e.g. v0.1.0). workflow_dispatch is
+# also wired so you can dry-run the build without publishing — the
+# push-to-nuget + GitHub-Release steps gate on `github.ref_type == 'tag'`.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write   # GitHub Release creation + asset upload
+  packages: write   # nuget push to GitHub Packages
+
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_NOLOGO: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    env:
+      NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      # workflow_dispatch (no tag) → synthetic version so artefacts
+      # have a sensible filename. Tag push → tag minus the leading 'v'.
+      - name: Extract version
+        id: version
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "VERSION=0.0.0-dispatch.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Regenerate templates-index.json from the live corpus so the
+      # nupkg embeds an in-sync index. Tag-time generation also lets
+      # the index carry the real release timestamp (vs the 0-pinned
+      # local-run value).
+      - name: Generate templates-index.json
+        env:
+          INDEX_GENERATED_AT: ${{ github.event.head_commit.timestamp && '' || '' }}
+        run: |
+          # Use the commit timestamp (seconds → millis) so the index's
+          # generatedAt matches the tagged commit, not the runner clock.
+          COMMIT_TS_MS=$(($(git log -1 --format=%ct) * 1000))
+          INDEX_GENERATED_AT=$COMMIT_TS_MS node scripts/generate-templates-index.mjs
+
+      # Validate every template still parses + matches the corpus
+      # schema. Cheap; runs before pack so a malformed JSON blocks
+      # the release instead of shipping a broken nupkg.
+      - name: Validate corpus
+        run: |
+          for f in $(find templates -name '*.json'); do
+            python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$f" \
+              || { echo "::error file=$f::Invalid JSON"; exit 1; }
+          done
+          echo "All $(find templates -name '*.json' | wc -l) templates parsed cleanly."
+
+      # NuGet pack
+      - name: Restore
+        run: dotnet restore Kuestenlogik.Bowire.VulnDb.csproj
+
+      - name: Build
+        run: |
+          dotnet build Kuestenlogik.Bowire.VulnDb.csproj \
+            -c Release --no-restore \
+            -p:Version=${{ steps.version.outputs.VERSION }}
+
+      - name: Pack
+        run: |
+          dotnet pack Kuestenlogik.Bowire.VulnDb.csproj \
+            -c Release --no-build \
+            -p:Version=${{ steps.version.outputs.VERSION }} \
+            -p:PackageVersion=${{ steps.version.outputs.VERSION }} \
+            -o ./artifacts
+
+      # Tarball: pure-JSON snapshot for non-.NET consumers.
+      - name: Tarball templates
+        run: |
+          mkdir -p ./artifacts
+          tar -czf ./artifacts/bowire-vulndb-templates-v${{ steps.version.outputs.VERSION }}.tar.gz \
+            templates templates-index.json README.md LICENSE
+          ls -la ./artifacts/
+
+      # NuGet push — nuget.org (gated on secret) + GitHub Packages.
+      - name: Push to nuget.org
+        if: ${{ github.ref_type == 'tag' && env.NUGET_API_KEY != '' }}
+        run: |
+          dotnet nuget push './artifacts/*.nupkg' \
+            --api-key "${NUGET_API_KEY}" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+
+      - name: Push to GitHub Packages
+        if: ${{ github.ref_type == 'tag' }}
+        run: |
+          dotnet nuget add source \
+            --username "${{ github.repository_owner }}" \
+            --password "${{ secrets.GITHUB_TOKEN }}" \
+            --store-password-in-clear-text \
+            --name github \
+            "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" || true
+          dotnet nuget push './artifacts/*.nupkg' \
+            --api-key "${{ secrets.GITHUB_TOKEN }}" \
+            --source github \
+            --skip-duplicate
+
+      # GitHub Release with the tarball + index.json + nupkg attached.
+      - name: Create GitHub Release
+        if: ${{ github.ref_type == 'tag' }}
+        uses: softprops/action-gh-release@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            ./artifacts/*.nupkg
+            ./artifacts/*.snupkg
+            ./artifacts/bowire-vulndb-templates-*.tar.gz
+            ./templates-index.json
