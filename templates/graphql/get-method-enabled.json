@@ -1,0 +1,46 @@
+{
+  "id": "bwr-graphql-004-get-method-enabled",
+  "name": "GraphQL queries executable over HTTP GET",
+  "description": "Sends a GraphQL query in the URL query string over HTTP GET (/graphql?query={__typename}) and checks it executes. When the server runs GraphQL operations over GET, the operation and (for queries) its result travel in the URL — so they land in proxy / CDN caches, browser history, and access logs, and the endpoint becomes CSRF-reachable (a state-changing operation triggered by a crafted <img>/<a> if GET mutations are also allowed). OWASP's GraphQL guidance is to accept operations over POST only. The __typename probe is schema-agnostic (it resolves on every GraphQL schema), so the finding is about the transport, independent of what the schema exposes. The predicate requires a successful data response, so a server that rejects GET (405 / errors-only) does not trip it.",
+  "createdAt": 1752451200000,
+  "recordingFormatVersion": 2,
+  "attack": true,
+  "vulnerability": {
+    "id": "BWR-GRAPHQL-004",
+    "cve": [],
+    "cwe": "CWE-352",
+    "owaspApi": "API8-2023-SECMISCONF",
+    "severity": "low",
+    "cvss": 4.3,
+    "protocols": ["graphql"],
+    "authors": ["thomas-stegemann"],
+    "introduced": "2026-07-14",
+    "references": [
+      "https://cheatsheetseries.owasp.org/cheatsheets/GraphQL_Cheat_Sheet.html#do-not-allow-get-based-mutations",
+      "https://owasp.org/API-Security/editions/2023/en/0xa8-security-misconfiguration/"
+    ],
+    "remediation": "Accept GraphQL operations over POST only, and reject GET (or restrict GET to safe, explicitly-allow-listed persisted queries). ASP.NET Core HotChocolate: `app.MapGraphQL().WithOptions(new GraphQLServerOptions { AllowedGetOperations = AllowedGetOperations.None })` (or disable the GET middleware). Never allow mutations over GET. Verify with `curl -k 'https://host/graphql?query=%7B__typename%7D'` — a POST-only server returns 405 or an error, not a `data` result."
+  },
+  "steps": [
+    {
+      "id": "probe-1",
+      "capturedAt": 1752451200000,
+      "protocol": "graphql",
+      "service": "graphql",
+      "method": "GET query",
+      "methodType": "Unary",
+      "httpVerb": "GET",
+      "httpPath": "/graphql?query=%7B__typename%7D",
+      "metadata": { "Accept": "application/json" },
+      "messages": [],
+      "status": "OK"
+    }
+  ],
+  "vulnerableWhen": {
+    "allOf": [
+      { "status": 200 },
+      { "bodyContains": "__typename" },
+      { "bodyMatches": "\"data\"\\s*:\\s*\\{" }
+    ]
+  }
+}

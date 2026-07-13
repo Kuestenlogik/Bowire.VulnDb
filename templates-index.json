@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "generatedAt": 0,
-  "count": 16,
+  "count": 17,
   "templates": [
     {
       "id": "bwr-graphql-001-introspection",
@@ -41,6 +41,19 @@
       "cvss": 3.7,
       "cwe": "CWE-200",
       "owaspApi": "API3-2023-BOPLA"
+    },
+    {
+      "id": "bwr-graphql-004-get-method-enabled",
+      "path": "graphql/get-method-enabled.json",
+      "name": "GraphQL queries executable over HTTP GET",
+      "protocol": "graphql",
+      "protocols": [
+        "graphql"
+      ],
+      "severity": "low",
+      "cvss": 4.3,
+      "cwe": "CWE-352",
+      "owaspApi": "API8-2023-SECMISCONF"
     },
     {
       "id": "bwr-grpc-001-reflection",
