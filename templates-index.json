@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "generatedAt": 0,
-  "count": 9,
+  "count": 12,
   "templates": [
     {
       "id": "bwr-graphql-001-introspection",
@@ -55,6 +55,19 @@
       "cvss": 7.5,
       "cwe": "CWE-540",
       "owaspApi": "API3-2023-BOPLA"
+    },
+    {
+      "id": "bwr-mcp-001-anonymous-tools-list",
+      "path": "mcp/anonymous-tools-list.json",
+      "name": "MCP server answers tools/list without authentication",
+      "protocol": "mcp",
+      "protocols": [
+        "mcp"
+      ],
+      "severity": "high",
+      "cvss": 8.6,
+      "cwe": "CWE-306",
+      "owaspApi": "API2-2023-BROKENAUTH"
     },
     {
       "id": "bwr-odata-001-metadata-exposed",
@@ -111,12 +124,39 @@
       "owaspApi": "API8-2023-SECMISCONF"
     },
     {
+      "id": "bwr-rest-003-permissive-cors",
+      "path": "rest/permissive-cors.json",
+      "name": "Permissive CORS — reflected Origin with credentials allowed",
+      "protocol": "rest",
+      "protocols": [
+        "rest",
+        "http"
+      ],
+      "severity": "high",
+      "cvss": 7.5,
+      "cwe": "CWE-942",
+      "owaspApi": "API8-2023-SECMISCONF"
+    },
+    {
       "id": "bwr-signalr-001-anonymous-negotiate",
       "path": "signalr/anonymous-negotiate.json",
       "name": "SignalR hub negotiate reachable by anonymous callers",
       "protocol": "signalr",
       "protocols": [
         "signalr"
+      ],
+      "severity": "medium",
+      "cvss": 5.3,
+      "cwe": "CWE-306",
+      "owaspApi": "API2-2023-BROKENAUTH"
+    },
+    {
+      "id": "bwr-socketio-001-anonymous-handshake",
+      "path": "socketio/anonymous-handshake.json",
+      "name": "Socket.IO handshake reachable by anonymous callers",
+      "protocol": "socketio",
+      "protocols": [
+        "socketio"
       ],
       "severity": "medium",
       "cvss": 5.3,

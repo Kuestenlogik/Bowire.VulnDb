@@ -1,0 +1,51 @@
+{
+  "id": "bwr-socketio-001-anonymous-handshake",
+  "name": "Socket.IO handshake reachable by anonymous callers",
+  "description": "GETs the Engine.IO polling handshake (/socket.io/?EIO=4&transport=polling) with no credentials. A Socket.IO server with no authentication on the handshake answers any client with an Engine.IO open packet (a leading '0' followed by a JSON handshake carrying the session id and the available upgrade transports). That session id is the ticket to opening the live connection and emitting/subscribing to events, so an open handshake is the pre-auth entry point to the real-time surface. The probe proves the handshake is anonymous; whether individual event handlers are themselves authorized is a separate check, but an open handshake is the necessary first step and a strong misconfiguration signal on its own.",
+  "createdAt": 1752451200000,
+  "recordingFormatVersion": 2,
+  "attack": true,
+  "vulnerability": {
+    "id": "BWR-SOCKETIO-001",
+    "cve": [],
+    "cwe": "CWE-306",
+    "owaspApi": "API2-2023-BROKENAUTH",
+    "severity": "medium",
+    "cvss": 5.3,
+    "protocols": ["socketio"],
+    "authors": ["thomas-stegemann"],
+    "introduced": "2026-07-14",
+    "references": [
+      "https://socket.io/docs/v4/engine-io-protocol/",
+      "https://owasp.org/API-Security/editions/2023/en/0xa2-broken-authentication/"
+    ],
+    "remediation": "Authenticate the Socket.IO handshake, not just individual events. Validate a token in the handshake auth payload (client `io({ auth: { token } })`, server `io.use((socket, next) => …)` middleware) and reject unauthenticated connections before the open packet is sent. Verify with `curl -k 'https://host/socket.io/?EIO=4&transport=polling'` — a gated server returns 401/403, not a `0{\"sid\":…}` open packet. If the namespace is intentionally public, keep every event handler individually authorized."
+  },
+  "steps": [
+    {
+      "id": "probe-1",
+      "capturedAt": 1752451200000,
+      "protocol": "socketio",
+      "service": "engineio",
+      "method": "GET handshake",
+      "methodType": "Unary",
+      "httpVerb": "GET",
+      "httpPath": "/socket.io/?EIO=4&transport=polling",
+      "metadata": { "Accept": "*/*" },
+      "messages": [],
+      "status": "OK"
+    }
+  ],
+  "vulnerableWhen": {
+    "allOf": [
+      { "status": 200 },
+      { "bodyMatches": "\"sid\"\\s*:" },
+      {
+        "anyOf": [
+          { "bodyContains": "upgrades" },
+          { "bodyContains": "pingInterval" }
+        ]
+      }
+    ]
+  }
+}

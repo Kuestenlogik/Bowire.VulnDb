@@ -1,0 +1,49 @@
+{
+  "id": "bwr-rest-003-permissive-cors",
+  "name": "Permissive CORS — reflected Origin with credentials allowed",
+  "description": "Sends a cross-site request carrying an attacker-controlled Origin and checks the response. When the server reflects that arbitrary Origin back into Access-Control-Allow-Origin AND sets Access-Control-Allow-Credentials: true, any website the victim visits can make credentialed cross-site requests to this API and read the responses — the classic CORS account-takeover / data-exfiltration misconfiguration (a reflected origin defeats the same-origin policy that credentials otherwise rely on). The predicate requires BOTH the reflected origin and the credentials flag, so a correctly-scoped CORS policy (fixed allow-list, or credentials off) does not trip it.",
+  "createdAt": 1752364800000,
+  "recordingFormatVersion": 2,
+  "attack": true,
+  "vulnerability": {
+    "id": "BWR-REST-003",
+    "cve": [],
+    "cwe": "CWE-942",
+    "owaspApi": "API8-2023-SECMISCONF",
+    "severity": "high",
+    "cvss": 7.5,
+    "protocols": ["rest", "http"],
+    "authors": ["thomas-stegemann"],
+    "introduced": "2026-07-13",
+    "references": [
+      "https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS",
+      "https://portswigger.net/web-security/cors",
+      "https://owasp.org/API-Security/editions/2023/en/0xa8-security-misconfiguration/"
+    ],
+    "remediation": "Never reflect the request Origin into Access-Control-Allow-Origin while Allow-Credentials is true. Use a fixed server-side allow-list of trusted origins and echo the Origin ONLY when it matches; otherwise omit the header. ASP.NET Core: `app.UseCors(p => p.WithOrigins(\"https://app.example.com\").AllowCredentials())` — never `.AllowAnyOrigin()` combined with `.AllowCredentials()` (the framework blocks that pairing, but hand-rolled reflection middleware bypasses the guard). If the API is public and credential-free, drop Allow-Credentials entirely."
+  },
+  "steps": [
+    {
+      "id": "probe-1",
+      "capturedAt": 1752364800000,
+      "protocol": "rest",
+      "service": "cors",
+      "method": "GET /",
+      "methodType": "Unary",
+      "httpVerb": "GET",
+      "httpPath": "/",
+      "metadata": {
+        "Origin": "https://evil.example",
+        "Accept": "*/*"
+      },
+      "messages": [],
+      "status": "OK"
+    }
+  ],
+  "vulnerableWhen": {
+    "allOf": [
+      { "headerEquals": { "Access-Control-Allow-Origin": "https://evil.example" } },
+      { "headerEquals": { "Access-Control-Allow-Credentials": "true" } }
+    ]
+  }
+}

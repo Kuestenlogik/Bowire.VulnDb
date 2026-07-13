@@ -1,0 +1,56 @@
+{
+  "id": "bwr-mcp-001-anonymous-tools-list",
+  "name": "MCP server answers tools/list without authentication",
+  "description": "POSTs a JSON-RPC tools/list to an MCP server's Streamable-HTTP endpoint with no credentials. When the server returns its tool catalogue to an unauthenticated caller, it discloses the entire tool surface — and, far worse, strongly implies those tools (SQL execution, file access, config mutation) are invocable pre-auth, a confused-deputy condition where the server proxies actions with its own privileges on behalf of any network-adjacent caller. This is the unauthenticated-MCP-server class seen in real advisories (e.g. MCP servers defaulting to 0.0.0.0 with no auth). The predicate looks for a JSON-RPC result carrying a tools array so a 401/empty response doesn't trip it.",
+  "createdAt": 1752451200000,
+  "recordingFormatVersion": 2,
+  "attack": true,
+  "vulnerability": {
+    "id": "BWR-MCP-001",
+    "cve": [],
+    "cwe": "CWE-306",
+    "owaspApi": "API2-2023-BROKENAUTH",
+    "severity": "high",
+    "cvss": 8.6,
+    "protocols": ["mcp"],
+    "authors": ["thomas-stegemann"],
+    "introduced": "2026-07-14",
+    "references": [
+      "https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization",
+      "https://modelcontextprotocol.io/specification/2025-06-18/basic/transports",
+      "https://owasp.org/API-Security/editions/2023/en/0xa2-broken-authentication/"
+    ],
+    "remediation": "Require authorization on the MCP HTTP transport before answering any method, including tools/list. Implement the MCP authorization spec (OAuth 2.1 bearer tokens on the Streamable-HTTP endpoint) and reject unauthenticated JSON-RPC requests with 401. Bind the server to loopback / a private interface rather than 0.0.0.0 when it is not meant to be network-reachable, and run tool calls with least-privilege credentials — never the server's own broad credentials on behalf of an unauthenticated caller. Verify with `curl -k -X POST https://host/mcp -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}'` — a gated server returns 401, not a tools array."
+  },
+  "steps": [
+    {
+      "id": "probe-1",
+      "capturedAt": 1752451200000,
+      "protocol": "mcp",
+      "service": "mcp",
+      "method": "POST tools/list",
+      "methodType": "Unary",
+      "httpVerb": "POST",
+      "httpPath": "/mcp",
+      "metadata": {
+        "Accept": "application/json, text/event-stream",
+        "Content-Type": "application/json"
+      },
+      "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}",
+      "messages": [],
+      "status": "OK"
+    }
+  ],
+  "vulnerableWhen": {
+    "allOf": [
+      { "status": 200 },
+      { "bodyContains": "\"tools\"" },
+      {
+        "anyOf": [
+          { "bodyContains": "\"jsonrpc\"" },
+          { "bodyMatches": "\"name\"\\s*:" }
+        ]
+      }
+    ]
+  }
+}
