@@ -1,0 +1,58 @@
+{
+  "id": "bwr-odata-002-entity-object-idor",
+  "name": "OData entity readable without object-level authorization (BOLA / IDOR)",
+  "description": "Requests a single OData entity by key — /odata/Orders(1) — with no credentials. When the service returns the full entity (an OData JSON envelope carrying the object's fields) to an unauthenticated caller, object-level authorization is missing: any caller can read any object by iterating the integer key. This is the OData shape of OWASP API1:2023 (Broken Object Level Authorization). A single anonymous probe is an INDICATOR, not proof — confirm the cross-tenant read with two identities (`bowire scan --auth-header ... --auth-header-b ...`), which reads the same object as identity A then identity B. The predicate deliberately looks for an owner/identity-bearing field in the body so a public, ownerless lookup table doesn't trip it.",
+  "createdAt": 1752364800000,
+  "recordingFormatVersion": 2,
+  "attack": true,
+  "vulnerability": {
+    "id": "BWR-ODATA-002",
+    "cve": [],
+    "cwe": "CWE-639",
+    "owaspApi": "API1-2023-BOLA",
+    "severity": "high",
+    "cvss": 7.5,
+    "protocols": ["odata"],
+    "authors": ["thomas-stegemann"],
+    "introduced": "2026-07-13",
+    "references": [
+      "https://owasp.org/API-Security/editions/2023/en/0xa1-broken-object-level-authorization/",
+      "https://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_RequestingIndividualEntities"
+    ],
+    "remediation": "Enforce object-level authorization on every keyed OData request, not just at the route level. ASP.NET Core OData: resolve the caller identity in the controller/endpoint and filter the query to objects the caller owns (`.Where(o => o.OwnerId == currentUserId)`) before returning — never trust the client-supplied key alone. Add an authorization policy that runs per-object, and cover it with a two-identity test (identity B must NOT read identity A's object). Verify with `bowire scan --auth-header 'Authorization: Bearer <A>' --auth-header-b 'Authorization: Bearer <B>'`."
+  },
+  "steps": [
+    {
+      "id": "probe-1",
+      "capturedAt": 1752364800000,
+      "protocol": "odata",
+      "service": "Orders",
+      "method": "GET Orders(1)",
+      "methodType": "Unary",
+      "httpVerb": "GET",
+      "httpPath": "/odata/Orders(1)",
+      "metadata": { "Accept": "application/json" },
+      "messages": [],
+      "status": "OK"
+    }
+  ],
+  "vulnerableWhen": {
+    "allOf": [
+      { "status": 200 },
+      {
+        "anyOf": [
+          { "bodyContains": "@odata.context" },
+          { "bodyContains": "@odata.id" }
+        ]
+      },
+      {
+        "anyOf": [
+          { "bodyMatches": "\"[Oo]wner\"\\s*:" },
+          { "bodyMatches": "\"[Oo]wner[Ii]d\"\\s*:" },
+          { "bodyMatches": "\"[Uu]ser[Ii]d\"\\s*:" },
+          { "bodyMatches": "\"[Tt]enant[Ii]d\"\\s*:" }
+        ]
+      }
+    ]
+  }
+}

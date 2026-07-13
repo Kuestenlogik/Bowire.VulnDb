@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "generatedAt": 0,
-  "count": 7,
+  "count": 9,
   "templates": [
     {
       "id": "bwr-graphql-001-introspection",
@@ -70,6 +70,19 @@
       "owaspApi": "API3-2023-BOPLA"
     },
     {
+      "id": "bwr-odata-002-entity-object-idor",
+      "path": "odata/entity-object-idor.json",
+      "name": "OData entity readable without object-level authorization (BOLA / IDOR)",
+      "protocol": "odata",
+      "protocols": [
+        "odata"
+      ],
+      "severity": "high",
+      "cvss": 7.5,
+      "cwe": "CWE-639",
+      "owaspApi": "API1-2023-BOLA"
+    },
+    {
       "id": "bwr-rest-001-missing-security-headers",
       "path": "rest/missing-security-headers.json",
       "name": "REST endpoint missing baseline security headers",
@@ -96,6 +109,19 @@
       "cvss": 3.1,
       "cwe": "CWE-693",
       "owaspApi": "API8-2023-SECMISCONF"
+    },
+    {
+      "id": "bwr-signalr-001-anonymous-negotiate",
+      "path": "signalr/anonymous-negotiate.json",
+      "name": "SignalR hub negotiate reachable by anonymous callers",
+      "protocol": "signalr",
+      "protocols": [
+        "signalr"
+      ],
+      "severity": "medium",
+      "cvss": 5.3,
+      "cwe": "CWE-306",
+      "owaspApi": "API2-2023-BROKENAUTH"
     }
   ]
 }

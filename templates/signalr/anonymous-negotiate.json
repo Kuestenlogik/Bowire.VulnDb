@@ -1,0 +1,52 @@
+{
+  "id": "bwr-signalr-001-anonymous-negotiate",
+  "name": "SignalR hub negotiate reachable by anonymous callers",
+  "description": "POSTs to a SignalR hub's negotiate endpoint (/hubs/<name>/negotiate) with no credentials. A hub mapped without an authorization policy answers the handshake for anyone, returning a connectionId / connectionToken and the availableTransports list — the entry point to opening a live hub connection and invoking whatever methods the hub exposes. In production this means the real-time surface (and every hub method's implicit trust in the caller) is reachable pre-auth. The probe only proves the negotiate handshake is open; whether individual hub methods are themselves authorized is a separate check, but an open negotiate is the necessary first step and a strong misconfiguration signal on its own.",
+  "createdAt": 1752364800000,
+  "recordingFormatVersion": 2,
+  "attack": true,
+  "vulnerability": {
+    "id": "BWR-SIGNALR-001",
+    "cve": [],
+    "cwe": "CWE-306",
+    "owaspApi": "API2-2023-BROKENAUTH",
+    "severity": "medium",
+    "cvss": 5.3,
+    "protocols": ["signalr"],
+    "authors": ["thomas-stegemann"],
+    "introduced": "2026-07-13",
+    "references": [
+      "https://learn.microsoft.com/aspnet/core/signalr/authn-and-authz",
+      "https://owasp.org/API-Security/editions/2023/en/0xa2-broken-authentication/"
+    ],
+    "remediation": "Gate the hub behind an authorization policy so negotiate rejects anonymous callers: annotate the hub class with `[Authorize]` (or map it with `app.MapHub<T>(\"/hubs/probe\").RequireAuthorization()`), and validate the access token SignalR carries on the negotiate + connection requests (`options.AccessTokenProvider`). Verify with `curl -k -X POST https://host/hubs/<name>/negotiate` — an authorized hub returns 401, not a connectionToken. If the hub is intentionally public, keep every hub method individually `[Authorize]`d and accept this finding explicitly."
+  },
+  "steps": [
+    {
+      "id": "probe-1",
+      "capturedAt": 1752364800000,
+      "protocol": "signalr",
+      "service": "probe",
+      "method": "POST negotiate",
+      "methodType": "Unary",
+      "httpVerb": "POST",
+      "httpPath": "/hubs/probe/negotiate",
+      "metadata": { "Accept": "application/json" },
+      "body": "",
+      "messages": [],
+      "status": "OK"
+    }
+  ],
+  "vulnerableWhen": {
+    "allOf": [
+      { "status": 200 },
+      {
+        "anyOf": [
+          { "bodyContains": "availableTransports" },
+          { "bodyContains": "connectionToken" },
+          { "bodyMatches": "\"connectionId\"\\s*:" }
+        ]
+      }
+    ]
+  }
+}
