@@ -118,6 +118,10 @@ Every PR runs the new + changed templates against a target deliberately misconfi
 
 PRs that don't satisfy both passes are blocked. See [`.github/workflows/validate.yml`](.github/workflows/validate.yml).
 
+## NVD sync
+
+A monthly workflow ([`.github/workflows/nvd-sync.yml`](.github/workflows/nvd-sync.yml) → [`scripts/nvd-sync.mjs`](scripts/nvd-sync.mjs)) queries the National Vulnerability Database for freshly-published CVEs on the protocol surfaces Bowire probes and opens an [`nvd-sync`](https://github.com/Kuestenlogik/Bowire.VulnDb/issues?q=label%3Anvd-sync)-labelled tracking issue for each one that has no template yet — the triage queue for new templates. It deduplicates against existing issues and covering templates, caps how many it opens per run, and never writes a template itself. Run it locally read-only with `node scripts/nvd-sync.mjs --dry-run`.
+
 ## License
 
 **MIT** (see [`LICENSE`](LICENSE)).

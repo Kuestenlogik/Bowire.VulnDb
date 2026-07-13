@@ -18,6 +18,13 @@ What does NOT belong:
 - ❌ Functional API tests (use the regular `bowire test` harness instead)
 - ❌ DoS / load-test patterns that send large traffic volume against the target
 
+## Where template ideas come from
+
+Two feeds:
+
+- **Open a PR for anything you've seen in the wild** — the community feed.
+- **The monthly NVD sync** ([`scripts/nvd-sync.mjs`](scripts/nvd-sync.mjs), run by [`.github/workflows/nvd-sync.yml`](.github/workflows/nvd-sync.yml)) queries the National Vulnerability Database for freshly-published CVEs on the protocol surfaces Bowire probes (gRPC, GraphQL, MQTT, OData, SignalR, WebSocket, Socket.IO, MCP) and opens an [`nvd-sync`-labelled issue](https://github.com/Kuestenlogik/Bowire.VulnDb/issues?q=label%3Anvd-sync) for each CVE that has no template yet. Those issues are the triage queue: assess whether the CVE maps to a request-shaped, probeable signal, then either author a template (listing the CVE id in `vulnerability.cve`) or close as not-applicable. The sync never writes a template itself, deduplicates against existing issues + covering templates, and caps how many it opens per run — so picking one up is a good first contribution.
+
 ## Authoring a template
 
 1. **Pick a protocol folder** — `templates/<protocol>/`. Add a folder if your protocol isn't represented yet.

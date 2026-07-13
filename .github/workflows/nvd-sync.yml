@@ -1,0 +1,58 @@
+# Monthly NVD sync — turn freshly-published CVEs on Bowire's multi-protocol
+# surfaces into deduplicated tracking issues for templates that don't exist
+# yet. Runs scripts/nvd-sync.mjs; see that file for the full flow.
+#
+# The job never writes a template — it opens `nvd-sync`-labelled issues a
+# maintainer triages. Re-runs skip any CVE that already has such an issue or a
+# covering template, so a monthly cadence doesn't spam.
+#
+# NVD_API_KEY (optional org/repo secret) raises the NVD rate limit; the script
+# works without it, just slower. GITHUB_TOKEN (issues: write) opens the issues.
+
+name: NVD sync
+
+on:
+  schedule:
+    # 06:00 UTC on the 1st of every month.
+    - cron: '0 6 1 * *'
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Print the plan without opening issues'
+        type: boolean
+        default: false
+      days:
+        description: 'Lookback window in days (NVD max 120)'
+        required: false
+        default: '30'
+
+permissions:
+  issues: write
+  contents: read
+
+concurrency:
+  group: nvd-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Sync NVD → tracking issues
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+          NVD_SYNC_DAYS: ${{ github.event.inputs.days || '30' }}
+        run: |
+          if [ "${{ github.event.inputs.dry-run }}" = "true" ]; then
+            node scripts/nvd-sync.mjs --dry-run
+          else
+            node scripts/nvd-sync.mjs
+          fi
