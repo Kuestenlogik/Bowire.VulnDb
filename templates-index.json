@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "generatedAt": 0,
-  "count": 15,
+  "count": 16,
   "templates": [
     {
       "id": "bwr-graphql-001-introspection",
@@ -107,6 +107,19 @@
       "cvss": 4.3,
       "cwe": "CWE-209",
       "owaspApi": "API8-2023-SECMISCONF"
+    },
+    {
+      "id": "bwr-odata-004-collection-anonymous",
+      "path": "odata/collection-anonymous.json",
+      "name": "OData entity collection enumerable without authentication",
+      "protocol": "odata",
+      "protocols": [
+        "odata"
+      ],
+      "severity": "high",
+      "cvss": 7.5,
+      "cwe": "CWE-284",
+      "owaspApi": "API3-2023-BOPLA"
     },
     {
       "id": "bwr-rest-001-missing-security-headers",

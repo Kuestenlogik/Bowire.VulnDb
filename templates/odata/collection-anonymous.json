@@ -1,0 +1,47 @@
+{
+  "id": "bwr-odata-004-collection-anonymous",
+  "name": "OData entity collection enumerable without authentication",
+  "description": "GETs an OData entity set — /odata/Orders — with no credentials and checks the response. When the service returns the full collection (an OData JSON envelope with a value array of entities) to an unauthenticated caller, the entire data set is enumerable by anyone: excessive data exposure plus broken function-level authorization on the collection endpoint. Unlike the single-object BOLA check (bwr-odata-002), this is bulk enumeration — one anonymous request pulls every row, and the records span multiple owners, so it is clearly not a per-caller-scoped view. The predicate requires the OData collection envelope AND more than one owner value, so a correctly-scoped single-tenant response doesn't trip it.",
+  "createdAt": 1752451200000,
+  "recordingFormatVersion": 2,
+  "attack": true,
+  "vulnerability": {
+    "id": "BWR-ODATA-004",
+    "cve": [],
+    "cwe": "CWE-284",
+    "owaspApi": "API3-2023-BOPLA",
+    "severity": "high",
+    "cvss": 7.5,
+    "protocols": ["odata"],
+    "authors": ["thomas-stegemann"],
+    "introduced": "2026-07-14",
+    "references": [
+      "https://owasp.org/API-Security/editions/2023/en/0xa3-broken-object-property-level-authorization/",
+      "https://docs.oasis-open.org/odata/odata/v4.01/odata-v4.01-part1-protocol.html#sec_RequestingaCollectionofEntities"
+    ],
+    "remediation": "Require authentication + authorization on every OData entity set, and scope the returned query to the caller's own records — never return the full collection. ASP.NET Core OData: gate the route with `.RequireAuthorization()` and apply a per-caller server-side filter (`.Where(o => o.OwnerId == currentUserId)`) before the OData query options run; cap `$top` with `[EnableQuery(MaxTop = …)]` so an authorized caller still can't pull unbounded data. Verify with `curl -k https://host/odata/Orders` — an authenticated, scoped endpoint returns 401 anonymously and only the caller's own rows once authorized."
+  },
+  "steps": [
+    {
+      "id": "probe-1",
+      "capturedAt": 1752451200000,
+      "protocol": "odata",
+      "service": "Orders",
+      "method": "GET Orders",
+      "methodType": "Unary",
+      "httpVerb": "GET",
+      "httpPath": "/odata/Orders",
+      "metadata": { "Accept": "application/json" },
+      "messages": [],
+      "status": "OK"
+    }
+  ],
+  "vulnerableWhen": {
+    "allOf": [
+      { "status": 200 },
+      { "bodyContains": "@odata.context" },
+      { "bodyMatches": "\"value\"\\s*:\\s*\\[" },
+      { "bodyMatches": "\"Owner\"\\s*:\\s*\"[^\"]+\"[\\s\\S]*\"Owner\"\\s*:\\s*\"[^\"]+\"" }
+    ]
+  }
+}
