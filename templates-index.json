@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "generatedAt": 0,
-  "count": 12,
+  "count": 15,
   "templates": [
     {
       "id": "bwr-graphql-001-introspection",
@@ -96,6 +96,19 @@
       "owaspApi": "API1-2023-BOLA"
     },
     {
+      "id": "bwr-odata-003-verbose-error",
+      "path": "odata/verbose-error.json",
+      "name": "OData verbose error leaks parser type + stack trace",
+      "protocol": "odata",
+      "protocols": [
+        "odata"
+      ],
+      "severity": "low",
+      "cvss": 4.3,
+      "cwe": "CWE-209",
+      "owaspApi": "API8-2023-SECMISCONF"
+    },
+    {
       "id": "bwr-rest-001-missing-security-headers",
       "path": "rest/missing-security-headers.json",
       "name": "REST endpoint missing baseline security headers",
@@ -138,6 +151,20 @@
       "owaspApi": "API8-2023-SECMISCONF"
     },
     {
+      "id": "bwr-rest-004-open-redirect",
+      "path": "rest/open-redirect.json",
+      "name": "Open redirect — unvalidated redirect target",
+      "protocol": "rest",
+      "protocols": [
+        "rest",
+        "http"
+      ],
+      "severity": "medium",
+      "cvss": 6.1,
+      "cwe": "CWE-601",
+      "owaspApi": "API8-2023-SECMISCONF"
+    },
+    {
       "id": "bwr-signalr-001-anonymous-negotiate",
       "path": "signalr/anonymous-negotiate.json",
       "name": "SignalR hub negotiate reachable by anonymous callers",
@@ -157,6 +184,19 @@
       "protocol": "socketio",
       "protocols": [
         "socketio"
+      ],
+      "severity": "medium",
+      "cvss": 5.3,
+      "cwe": "CWE-306",
+      "owaspApi": "API2-2023-BROKENAUTH"
+    },
+    {
+      "id": "bwr-sse-001-unauthenticated-stream",
+      "path": "sse/unauthenticated-stream.json",
+      "name": "Server-Sent Events stream reachable by anonymous callers",
+      "protocol": "sse",
+      "protocols": [
+        "sse"
       ],
       "severity": "medium",
       "cvss": 5.3,

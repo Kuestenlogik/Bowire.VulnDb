@@ -1,0 +1,51 @@
+{
+  "id": "bwr-sse-001-unauthenticated-stream",
+  "name": "Server-Sent Events stream reachable by anonymous callers",
+  "description": "GETs a Server-Sent Events endpoint with no credentials. When the server answers with a text/event-stream response and starts pushing events (data: frames) to an unauthenticated caller, any client that can reach the URL receives the server-push feed — order updates, notifications, presence, audit events, whatever the stream carries. SSE streams are easy to ship without auth because they look like a plain GET; the misconfiguration is that the same authorization gating the REST endpoints isn't applied to the event stream. The predicate looks for both the event-stream content type and a data: frame so a normal HTML/JSON 200 doesn't trip it.",
+  "createdAt": 1752451200000,
+  "recordingFormatVersion": 2,
+  "attack": true,
+  "vulnerability": {
+    "id": "BWR-SSE-001",
+    "cve": [],
+    "cwe": "CWE-306",
+    "owaspApi": "API2-2023-BROKENAUTH",
+    "severity": "medium",
+    "cvss": 5.3,
+    "protocols": ["sse"],
+    "authors": ["thomas-stegemann"],
+    "introduced": "2026-07-14",
+    "references": [
+      "https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events",
+      "https://owasp.org/API-Security/editions/2023/en/0xa2-broken-authentication/"
+    ],
+    "remediation": "Apply the same authorization policy to the SSE endpoint that protects the underlying data. ASP.NET Core: annotate the streaming endpoint with `[Authorize]` (or `.RequireAuthorization()`), validate the token before writing the first event, and scope the events to what the authenticated caller may see (never broadcast every tenant's events on one stream). Verify with `curl -k -N https://host/events` — a gated stream returns 401 before any `data:` frame. If the feed is intentionally public, document it and ensure it carries no per-user / sensitive data."
+  },
+  "steps": [
+    {
+      "id": "probe-1",
+      "capturedAt": 1752451200000,
+      "protocol": "sse",
+      "service": "events",
+      "method": "GET /events",
+      "methodType": "ServerStreaming",
+      "httpVerb": "GET",
+      "httpPath": "/events",
+      "metadata": { "Accept": "text/event-stream" },
+      "messages": [],
+      "status": "OK"
+    }
+  ],
+  "vulnerableWhen": {
+    "allOf": [
+      { "status": 200 },
+      {
+        "anyOf": [
+          { "headerEquals": { "Content-Type": "text/event-stream" } },
+          { "headerEquals": { "Content-Type": "text/event-stream; charset=utf-8" } }
+        ]
+      },
+      { "bodyMatches": "(^|\\n)data:\\s" }
+    ]
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "id": "bwr-odata-003-verbose-error",
+  "name": "OData verbose error leaks parser type + stack trace",
+  "description": "Sends a malformed $filter expression to an OData collection and checks the error response. When the service answers with a detailed error — the internal OData parser exception type (Microsoft.OData.ODataException) and a stack trace — it discloses implementation internals (framework, version-specific call paths) that help an attacker fingerprint the stack and craft further injection. Verbose errors are the OData analogue of a leaked developer exception page. The predicate looks for the OData exception type / stacktrace markers, so a terse RFC-compliant error body (code + generic message only) does not trip it.",
+  "createdAt": 1752451200000,
+  "recordingFormatVersion": 2,
+  "attack": true,
+  "vulnerability": {
+    "id": "BWR-ODATA-003",
+    "cve": [],
+    "cwe": "CWE-209",
+    "owaspApi": "API8-2023-SECMISCONF",
+    "severity": "low",
+    "cvss": 4.3,
+    "protocols": ["odata"],
+    "authors": ["thomas-stegemann"],
+    "introduced": "2026-07-14",
+    "references": [
+      "https://cwe.mitre.org/data/definitions/209.html",
+      "https://owasp.org/API-Security/editions/2023/en/0xa8-security-misconfiguration/"
+    ],
+    "remediation": "Return terse, RFC-compliant OData errors in production — a `code` and a generic `message`, never the exception type, inner error, or stack trace. ASP.NET Core OData: don't enable detailed errors outside Development (`ODataOptions` / `IncludeErrorDetail` gated to the Development environment), and add a global exception handler that maps parser failures to a plain 400. Verify with `curl -k 'https://host/odata/Orders?$filter=bogus'` — the body should not contain `ODataException`, `stacktrace`, or a namespace-qualified type."
+  },
+  "steps": [
+    {
+      "id": "probe-1",
+      "capturedAt": 1752451200000,
+      "protocol": "odata",
+      "service": "Orders",
+      "method": "GET Orders?$filter=(malformed)",
+      "methodType": "Unary",
+      "httpVerb": "GET",
+      "httpPath": "/odata/Orders?$filter=bogus%20eq%20",
+      "metadata": { "Accept": "application/json" },
+      "messages": [],
+      "status": "OK"
+    }
+  ],
+  "vulnerableWhen": {
+    "allOf": [
+      { "statusIn": [400, 500] },
+      {
+        "anyOf": [
+          { "bodyContains": "ODataException" },
+          { "bodyContains": "stacktrace" },
+          { "bodyMatches": "Microsoft\\.OData" }
+        ]
+      }
+    ]
+  }
+}

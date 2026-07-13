@@ -1,0 +1,45 @@
+{
+  "id": "bwr-rest-004-open-redirect",
+  "name": "Open redirect — unvalidated redirect target",
+  "description": "Requests a redirect endpoint with an attacker-controlled target URL (?url=https://evil.example) and checks the response. When the server issues a 3xx redirect whose Location is the caller-supplied external URL with no allow-list validation, an attacker can craft a link on this trusted origin that bounces the victim to an attacker-controlled site — a phishing amplifier and a classic OAuth/OIDC token-theft vector (a redirect_uri-style bounce that leaks tokens or codes in the URL). The predicate requires a redirect status AND the Location echoing the exact attacker origin, so an in-scope relative redirect doesn't trip it.",
+  "createdAt": 1752451200000,
+  "recordingFormatVersion": 2,
+  "attack": true,
+  "vulnerability": {
+    "id": "BWR-REST-004",
+    "cve": [],
+    "cwe": "CWE-601",
+    "owaspApi": "API8-2023-SECMISCONF",
+    "severity": "medium",
+    "cvss": 6.1,
+    "protocols": ["rest", "http"],
+    "authors": ["thomas-stegemann"],
+    "introduced": "2026-07-14",
+    "references": [
+      "https://cheatsheetseries.owasp.org/cheatsheets/Unvalidated_Redirects_and_Forwards_Cheat_Sheet.html",
+      "https://cwe.mitre.org/data/definitions/601.html"
+    ],
+    "remediation": "Never redirect to a caller-supplied absolute URL. Validate the target against a server-side allow-list of trusted hosts, or accept only relative paths (reject anything with a scheme or `//` authority). ASP.NET Core: use `Url.IsLocalUrl(target)` before `Redirect(target)` and fall back to a safe default otherwise. For OAuth/OIDC flows, match redirect_uri exactly against pre-registered values. Verify with `curl -k -sD - 'https://host/redirect?url=https://evil.example'` — a fixed server returns a same-origin Location (or 400), never `Location: https://evil.example`."
+  },
+  "steps": [
+    {
+      "id": "probe-1",
+      "capturedAt": 1752451200000,
+      "protocol": "rest",
+      "service": "redirect",
+      "method": "GET /redirect",
+      "methodType": "Unary",
+      "httpVerb": "GET",
+      "httpPath": "/redirect?url=https://evil.example/pwned",
+      "metadata": { "Accept": "*/*" },
+      "messages": [],
+      "status": "OK"
+    }
+  ],
+  "vulnerableWhen": {
+    "allOf": [
+      { "statusIn": [301, 302, 303, 307, 308] },
+      { "headerEquals": { "Location": "https://evil.example/pwned" } }
+    ]
+  }
+}
