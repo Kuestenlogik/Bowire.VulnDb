@@ -12,14 +12,30 @@ Anchor repo for the security-testing lane defined in [Bowire's ADR](https://gith
 # Install bowire (skip if you already have it)
 dotnet tool install -g Kuestenlogik.Bowire.Tool
 
-# Clone the templates
-git clone https://github.com/Kuestenlogik/Bowire.VulnDb.git ~/.bowire/vulndb
+# Fetch the curated template set into the local cache (~/.bowire/vulndb).
+# Pulls the latest GitHub release; no git clone needed.
+bowire vulndb update
 
-# Run every template against your target
-bowire scan --target https://your-api.example.com --templates ~/.bowire/vulndb/templates
+# Run every cached template against your target — scan reads the cache by
+# default, so no --templates flag is required.
+bowire scan --target https://your-api.example.com
+
+# Review what's cached
+bowire vulndb list
 ```
 
-To run a single template (or one folder):
+`bowire vulndb update` is the only outbound call, and only because you ran it.
+For air-gapped / pinned installs, point `--source` at a repo checkout, a
+release `.tar.gz`, or a URL, or pin a release with `--ref`:
+
+```bash
+bowire vulndb update --source ./Bowire.VulnDb          # a local checkout / mirror
+bowire vulndb update --source bowire-vulndb-templates-v0.1.0.tar.gz
+bowire vulndb update --ref v0.1.0                       # pin a release
+```
+
+To run a single template (or one folder) explicitly — an explicit `--template`
+/ `--templates` always wins over the cache:
 
 ```bash
 bowire scan --target https://your-api.example.com --template templates/graphql/introspection-enabled.json
