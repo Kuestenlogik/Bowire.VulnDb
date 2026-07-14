@@ -1,0 +1,45 @@
+{
+  "id": "bwr-websocket-001-origin-not-validated",
+  "name": "WebSocket handshake accepts any Origin (Cross-Site WebSocket Hijacking)",
+  "description": "Performs the WebSocket upgrade handshake with an attacker-controlled Origin header. When the server completes the handshake (101 Switching Protocols) regardless of Origin, it does not validate where the connection request came from — so any web page the victim visits can open an authenticated WebSocket to this endpoint using the victim's ambient credentials (cookies) and read/drive the live channel: Cross-Site WebSocket Hijacking. Unlike CORS, the same-origin policy does NOT protect WebSocket handshakes, so the server must check Origin itself. The predicate matches on the 101 status returned for a cross-origin handshake.",
+  "createdAt": 1752451200000,
+  "recordingFormatVersion": 2,
+  "attack": true,
+  "vulnerability": {
+    "id": "BWR-WEBSOCKET-001",
+    "cve": [],
+    "cwe": "CWE-346",
+    "owaspApi": "API8-2023-SECMISCONF",
+    "severity": "high",
+    "cvss": 7.5,
+    "protocols": ["websocket"],
+    "authors": ["thomas-stegemann"],
+    "introduced": "2026-07-14",
+    "references": [
+      "https://cheatsheetseries.owasp.org/cheatsheets/WebSocket_Security_Cheat_Sheet.html",
+      "https://christian-schneider.net/CrossSiteWebSocketHijacking.html"
+    ],
+    "remediation": "Validate the Origin header on the WebSocket handshake against a server-side allow-list before accepting the upgrade. ASP.NET Core: `app.UseWebSockets(new WebSocketOptions { AllowedOrigins = { \"https://app.example.com\" } })` (the middleware then rejects other origins with a 403), or check `context.Request.Headers.Origin` in the endpoint and return 403. Do NOT rely on cookies/SameSite alone. Additionally bind auth to a per-connection token in the handshake rather than ambient cookies. Verify with a handshake carrying a foreign Origin — it should return 403, not 101."
+  },
+  "steps": [
+    {
+      "id": "probe-1",
+      "capturedAt": 1752451200000,
+      "protocol": "websocket",
+      "service": "ws",
+      "method": "GET /ws (upgrade)",
+      "methodType": "Unary",
+      "httpVerb": "GET",
+      "httpPath": "/ws",
+      "metadata": { "Origin": "https://evil.example" },
+      "messages": [],
+      "status": "OK"
+    }
+  ],
+  "vulnerableWhen": {
+    "allOf": [
+      { "status": 101 },
+      { "headerExists": ["Sec-WebSocket-Accept"] }
+    ]
+  }
+}

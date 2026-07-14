@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "generatedAt": 0,
-  "count": 17,
+  "count": 19,
   "templates": [
     {
       "id": "bwr-graphql-001-introspection",
@@ -228,6 +228,32 @@
       "cvss": 5.3,
       "cwe": "CWE-306",
       "owaspApi": "API2-2023-BROKENAUTH"
+    },
+    {
+      "id": "bwr-websocket-001-origin-not-validated",
+      "path": "websocket/origin-not-validated.json",
+      "name": "WebSocket handshake accepts any Origin (Cross-Site WebSocket Hijacking)",
+      "protocol": "websocket",
+      "protocols": [
+        "websocket"
+      ],
+      "severity": "high",
+      "cvss": 7.5,
+      "cwe": "CWE-346",
+      "owaspApi": "API8-2023-SECMISCONF"
+    },
+    {
+      "id": "bwr-websocket-002-subprotocol-reflected",
+      "path": "websocket/subprotocol-reflected.json",
+      "name": "WebSocket server reflects an arbitrary requested subprotocol",
+      "protocol": "websocket",
+      "protocols": [
+        "websocket"
+      ],
+      "severity": "medium",
+      "cvss": 5.3,
+      "cwe": "CWE-436",
+      "owaspApi": "API8-2023-SECMISCONF"
     }
   ]
 }
