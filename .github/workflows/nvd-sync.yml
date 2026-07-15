@@ -6,6 +6,12 @@
 # maintainer triages. Re-runs skip any CVE that already has such an issue or a
 # covering template, so a monthly cadence doesn't spam.
 #
+# The run files only the top N by severity (NVD_SYNC_MAX_ISSUES, default 8).
+# Keyword hits are dominated by library-internal CVEs Bowire can't probe, so
+# the un-opened tail is dropped on purpose — it is NOT queued for the next run
+# (that run's window starts `days` before itself). To sweep further back, use
+# workflow_dispatch with a larger `days` value.
+#
 # NVD_API_KEY (optional org/repo secret) raises the NVD rate limit; the script
 # works without it, just slower. GITHUB_TOKEN (issues: write) opens the issues.
 

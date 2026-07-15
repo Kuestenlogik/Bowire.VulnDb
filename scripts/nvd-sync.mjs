@@ -21,6 +21,14 @@
  *      ticket).
  *   4. Open up to a capped number of issues, highest-severity first.
  *
+ * On the cap: keyword hits are dominated by library-internal CVEs with no
+ * request-shaped signal Bowire could probe, so the run files only the top
+ * NVD_SYNC_MAX_ISSUES by severity. The un-opened tail is NOT carried over —
+ * the next scheduled run's window starts NVD_SYNC_DAYS before *that* run, so
+ * today's tail falls out of scope for good. That's the intended signal/noise
+ * trade-off, not a queue; reach the tail by dispatching manually with a wider
+ * `days` window and a raised cap / CVSS floor.
+ *
  * Zero dependencies — Node 20+ global fetch only, matching
  * generate-templates-index.mjs. Runs read-only in --dry-run (the default when
  * GITHUB_TOKEN is absent), so it's safe to run locally against live NVD.
@@ -56,10 +64,20 @@ const LABEL = 'nvd-sync';
 // terms (rest / http / udp) are deliberately excluded — they return thousands
 // of unrelated CVEs and would drown the signal. `protocol` maps to the
 // templates/<protocol>/ folder so the issue can point authors at the right bucket.
+//
+// `nativeOnly` marks a surface this corpus CANNOT express: a template's probe is
+// replayed over HTTP (the scanner's runner is HttpClient-based), so protocols
+// that reach their native transport without an HTTP handshake have no template
+// shape. MQTT-over-TCP is the case — its coverage lives as native probes in the
+// scanner (MqttAuthProbe / MqttWildcardSubscribeProbe / …) over in
+// Kuestenlogik/Bowire. The keyword still earns its place: a new MQTT CVE is
+// worth triaging, it just lands as a probe there, not a template here. Every
+// other surface below is reachable over HTTP (WS/SignalR/Socket.IO/SSE via their
+// handshake, MCP + GraphQL + gRPC-Web + OData natively).
 const PROTOCOL_KEYWORDS = [
     { keyword: 'graphql', protocol: 'graphql' },
     { keyword: 'grpc', protocol: 'grpc' },
-    { keyword: 'mqtt', protocol: 'mqtt' },
+    { keyword: 'mqtt', protocol: 'mqtt', nativeOnly: true },
     { keyword: 'odata', protocol: 'odata' },
     { keyword: 'signalr', protocol: 'signalr' },
     { keyword: 'websocket', protocol: 'websocket' },
@@ -223,12 +241,26 @@ async function ensureLabel() {
 }
 
 function issueTitle(c) {
-    return `${c.id} — needs a ${c.protocol} template?`;
+    return c.nativeOnly
+        ? `${c.id} — needs a ${c.protocol} probe?`
+        : `${c.id} — needs a ${c.protocol} template?`;
 }
 
 function issueBody(c) {
+    // The "author it" step differs by surface: a template lives here, but a
+    // native-transport surface (MQTT) has no template shape — its probe lives
+    // in the scanner. Pointing an author at `templates/mqtt/…` would send them
+    // after a file the engine could never replay.
+    const authorStep = c.nativeOnly
+        ? `- [ ] If yes: this surface has **no template shape** — a template's probe is replayed over HTTP, and ${c.protocol} reaches its native transport without an HTTP handshake. Add a native probe in [\`Kuestenlogik/Bowire\`](https://github.com/Kuestenlogik/Bowire) next to the existing \`${c.protocol}\` probes in \`src/Kuestenlogik.Bowire.Security.Scanner/\`, and close this issue with a link to that PR.`
+        : `- [ ] If yes: author \`templates/${c.protocol}/<name>.json\` per [\`docs/template-schema.md\`](../blob/main/docs/template-schema.md) + [\`CONTRIBUTING.md\`](../blob/main/CONTRIBUTING.md), listing \`${c.id}\` in \`vulnerability.cve\`.`;
+
+    const lede = c.nativeOnly
+        ? `A recently-published CVE matched the **${c.protocol}** keyword search. ${c.protocol.toUpperCase()} coverage lives as native scanner probes (not templates — see below), so triage whether this CVE warrants a new probe; otherwise close as not-applicable.`
+        : `A recently-published CVE matched the **${c.protocol}** keyword search and has no template in this corpus yet. Assess whether it maps to a probeable, multi-protocol misconfiguration/vulnerability Bowire can detect — and if so, author a template; otherwise close as not-applicable.`;
+
     return [
-        `A recently-published CVE matched the **${c.protocol}** keyword search and has no template in this corpus yet. Assess whether it maps to a probeable, multi-protocol misconfiguration/vulnerability Bowire can detect — and if so, author a template; otherwise close as not-applicable.`,
+        lede,
         '',
         `- **CVE:** [${c.id}](https://nvd.nist.gov/vuln/detail/${c.id})`,
         `- **Published:** ${c.published.slice(0, 10)}`,
@@ -242,7 +274,7 @@ function issueBody(c) {
         '---',
         '',
         '- [ ] Relevant to a Bowire-probeable surface (not a library-internal bug with no request-shaped signal)?',
-        `- [ ] If yes: author \`templates/${c.protocol}/<name>.json\` per [\`docs/template-schema.md\`](../blob/main/docs/template-schema.md) + [\`CONTRIBUTING.md\`](../blob/main/CONTRIBUTING.md), listing \`${c.id}\` in \`vulnerability.cve\`.`,
+        authorStep,
         '- [ ] If not: close as not-applicable (a comment on why helps the next triage).',
         '',
         `<sub>Opened automatically by \`scripts/nvd-sync.mjs\`. Re-runs skip any CVE that already has an \`${LABEL}\` issue or a covering template.</sub>`,
@@ -276,7 +308,7 @@ async function main() {
     // that matches two keywords is filed once, under the first match).
     const seen = new Set();
     const candidates = [];
-    for (const { keyword, protocol } of PROTOCOL_KEYWORDS) {
+    for (const { keyword, protocol, nativeOnly = false } of PROTOCOL_KEYWORDS) {
         let cves;
         try {
             cves = await nvdSearch(keyword, start, now);
@@ -292,7 +324,7 @@ async function main() {
             const { score, severity } = bestScore(cve);
             if (score === null || score < MIN_CVSS) continue;
             seen.add(id);
-            candidates.push({ id, protocol, keyword, published: cve.published || '', score, severity, raw: cve });
+            candidates.push({ id, protocol, keyword, nativeOnly, published: cve.published || '', score, severity, raw: cve });
             kept++;
         }
         console.log(`  ${keyword}: ${cves.length} CVE(s) in window, ${kept} new candidate(s).`);
@@ -304,7 +336,7 @@ async function main() {
     candidates.sort((a, b) => (b.score - a.score) || (b.published < a.published ? -1 : 1));
     const planned = candidates.slice(0, MAX_ISSUES);
 
-    console.log(`\n${candidates.length} candidate(s); opening ${planned.length}${candidates.length > planned.length ? ` (capped at ${MAX_ISSUES}; ${candidates.length - planned.length} deferred to next run)` : ''}:`);
+    console.log(`\n${candidates.length} candidate(s); opening ${planned.length}${candidates.length > planned.length ? ` (capped at ${MAX_ISSUES}; ${candidates.length - planned.length} NOT opened — see the note below)` : ''}:`);
     if (planned.length === 0) {
         console.log('  (nothing to open)');
         return;
@@ -322,7 +354,14 @@ async function main() {
     }
 
     if (candidates.length > planned.length) {
-        console.log(`\nNote: ${candidates.length - planned.length} candidate(s) over the ${MAX_ISSUES}/run cap were not opened this run; the next run surfaces them (they stay un-tracked until an issue exists).`);
+        const dropped = candidates.length - planned.length;
+        const lowest = planned.at(-1)?.score;
+        console.log(
+            `\nNote: ${dropped} candidate(s) below CVSS ${lowest} were NOT opened (cap ${MAX_ISSUES}/run) and the next scheduled run will NOT surface them —\n` +
+            `      its lookback window starts ${DAYS}d before *that* run, so today's un-opened tail falls out of scope permanently.\n` +
+            `      This is a deliberate signal/noise trade-off: keyword matches are dominated by library-internal CVEs with no\n` +
+            `      request-shaped probe, so the sync files only the top ${MAX_ISSUES} by severity. To reach the tail, dispatch the\n` +
+            `      workflow manually with a larger 'days' window and NVD_SYNC_MAX_ISSUES / NVD_SYNC_MIN_CVSS raised.`);
     }
 }
 

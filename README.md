@@ -50,12 +50,28 @@ templates/
   graphql/           ← GraphQL-specific findings (introspection, deep-nesting, …)
   rest/              ← REST / generic HTTP findings (security headers, open redirect, …)
   odata/             ← OData-specific findings ($expand IDOR, $filter injection, …)
-  signalr/           ← SignalR hub findings (method brute-force, group bypass, …)
+  signalr/           ← SignalR hub findings (anonymous negotiate, group bypass, …)
   websocket/         ← WebSocket findings (origin check missing, subprotocol confusion)
-  mqtt/              ← MQTT broker findings (anonymous access, retained-message disclosure)
-  socketio/          ← Socket.IO findings
-  sse/               ← Server-Sent Events findings
+  socketio/          ← Socket.IO findings (anonymous handshake, …)
+  sse/               ← Server-Sent Events findings (unauthenticated stream, …)
+  mcp/               ← Model Context Protocol findings (anonymous tools/list, …)
 ```
+
+### What does *not* live here: native-transport protocols
+
+A template's probe is replayed **over HTTP** — the scanner's runner is
+HttpClient-based. Every folder above is therefore reachable over HTTP, either
+natively (REST / GraphQL / OData / gRPC-Web / MCP) or via an HTTP handshake
+(WebSocket upgrade, SignalR negotiate, Socket.IO handshake, SSE stream).
+
+**MQTT-over-TCP has no HTTP surface, so it has no template shape.** Its coverage
+ships as native probes inside the scanner
+([`Kuestenlogik/Bowire`](https://github.com/Kuestenlogik/Bowire),
+`src/Kuestenlogik.Bowire.Security.Scanner/`): anonymous access, wildcard-subscribe
+privilege, retained-message poisoning, and will-message abuse. Run them with
+`bowire scan --target mqtt://broker:1883 --suite protocol`. A new MQTT CVE is
+still triaged by this repo's monthly NVD sync — it just lands as a probe there
+rather than a template here.
 
 Each template is a JSON file with a stable filename matching the template id (lowercased, dash-separated).
 
