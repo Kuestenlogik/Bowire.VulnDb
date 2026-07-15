@@ -128,7 +128,33 @@ jobs:
                       --templates templates \
                       --allow-self-signed-certs \
                       --scope localhost \
-                      --out findings.sarif
+                      --out findings.sarif | tee scan.log
+
+      # `bowire scan` exits 0 whether or not anything fired — findings are its
+      # product, not a failure — so the scan step alone asserts nothing. The
+      # gate lives here, post-processing the SARIF exactly as the scanner's own
+      # docs prescribe. Without this the job was green while templates silently
+      # stopped firing.
+      - name: Assert the corpus actually fired
+        run: |
+          fired=$(jq '[.runs[0].results[].ruleId] | unique | length' findings.sarif)
+          echo "Distinct rules fired: $fired"
+          if [ "$fired" -lt 1 ]; then
+            echo "::error::No template fired against the vulnerable sample — the corpus is not detecting anything."
+            exit 1
+          fi
+
+          # Templates the installed CLI cannot replay are reported as skipped
+          # and can never fire. That is NOT a corpus failure — it means the
+          # released scanner predates the transport (e.g. WS / SignalR /
+          # Socket.IO / SSE / MCP became HTTP-class after the last release) —
+          # but it must stay visible, otherwise a green gate reads as "all
+          # validated" when part of the corpus was never exercised.
+          skipped=$(grep -c "not yet supported by scanner" scan.log || true)
+          if [ "$skipped" -gt 0 ]; then
+            echo "::warning::${skipped} template(s) were SKIPPED — the installed bowire release does not support their transport, so this run did not validate them. They are covered once a release ships that transport."
+            grep "not yet supported by scanner" -B1 scan.log || true
+          fi
 
       - name: Stop sample
         if: always()
