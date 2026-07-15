@@ -88,22 +88,39 @@ jobs:
           repository: Kuestenlogik/Bowire.Samples
           path: bowire-samples
 
+      # Build up front so the readiness window below measures startup, not a
+      # cold restore+build (which alone outlasts any sane wait).
+      - name: Build vulnerable sample
+        run: |
+          cd bowire-samples
+          dotnet build "$SAMPLE_PROJECT" -c Release
+        env:
+          SAMPLE_PROJECT: harbor-demo/src/Kuestenlogik.Bowire.Samples.Vulnerable
+
+      # The sample binds https://localhost:5140, so Kestrel needs a dev cert —
+      # without one it exits before ever listening. --trust is a no-op on Linux
+      # runners; the scan passes --allow-self-signed-certs anyway.
+      - name: Trust the ASP.NET dev certificate
+        run: dotnet dev-certs https
+
       - name: Start vulnerable sample
         run: |
           cd bowire-samples
           # Background; redirect logs so they don't block the workflow shell.
-          dotnet run --project src/Kuestenlogik.Bowire.Samples.Vulnerable -c Release > sample.log 2>&1 &
+          dotnet run --project "$SAMPLE_PROJECT" -c Release --no-build > sample.log 2>&1 &
           echo "sample_pid=$!" >> $GITHUB_ENV
           # Wait until the listener is up. 5140 is the sample's documented
-          # bind port.
-          for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+          # bind port (harbor-demo/.../Vulnerable Program.cs: UseUrls).
+          for i in $(seq 1 45); do
             if curl -k -sS https://localhost:5140 -o /dev/null; then
               echo "Sample is up after ${i}s"; exit 0
             fi
             sleep 1
           done
-          cat sample.log
-          echo "Sample didn't come up in 15s"; exit 1
+          echo "----- sample.log -----"; cat sample.log
+          echo "Sample didn't come up in 45s"; exit 1
+        env:
+          SAMPLE_PROJECT: harbor-demo/src/Kuestenlogik.Bowire.Samples.Vulnerable
 
       - name: Run full corpus against sample
         run: |
