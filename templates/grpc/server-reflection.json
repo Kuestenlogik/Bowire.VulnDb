@@ -25,7 +25,7 @@
     {
       "id": "probe-1",
       "capturedAt": 1747526400000,
-      "_protocolNote": "DO NOT 'correct' protocol to 'grpc' — it would break this template. The scanner only replays HTTP-class transports (ScanCommand.IsHttpClassProtocol: REST/GRAPHQL/ODATA/HTTP/SSE/SIGNALR/SOCKETIO/MCP), and GRPC is not on that list; a 'grpc' value makes the scanner skip the probe entirely instead of running it. This probe is a plain HTTP/1.1 POST, so it rides an HTTP-class value to get replayed. Revisit once a release adds GRPC/GRPC-WEB to that list.",
+      "_protocolNote": "DO NOT 'correct' protocol to 'grpc' YET — it would silently un-fire this template against the released CLI. Bowire's scanner only replays HTTP-class transports (ScanCommand.IsHttpClassProtocol); GRPC was missing from that list, so a 'grpc' value made the scanner skip the probe entirely. This probe is a plain HTTP/1.1 POST, so it rides an HTTP-class value instead. Bowire main has since added GRPC/GRPC-WEB (Kuestenlogik/Bowire@4ffe579b — verified: the honest value then fires), but validate.yml installs the PUBLISHED CLI. Flip this to 'grpc' and delete this note only once a release carrying that commit is out, otherwise the gate starts skipping this template.",
       "protocol": "graphql",
       "service": "grpc.reflection.v1alpha.ServerReflection",
       "method": "ServerReflectionInfo",
