@@ -1,7 +1,7 @@
 {
   "id": "bwr-grpc-001-reflection",
   "name": "gRPC Server Reflection exposes internal services in production",
-  "description": "Probes the gRPC Server Reflection endpoint via its gRPC-Web HTTP/1.1 surface (so the scan can hit it without an HTTP/2 client). Vulnerable when reflection is enabled in production and returns a non-empty service list — leaks service catalogue + method signatures to anyone who can reach the port.",
+  "description": "Probes the gRPC Server Reflection endpoint over HTTP/1.1 (so the scan can hit it without an HTTP/2 client). Vulnerable when the reflection service is mapped — it leaks the service catalogue + method signatures to anyone who can reach the port.\n\nTwo detection paths, because a reflection-enabled server answers differently depending on whether gRPC-Web is also enabled:\n\n1. **Plain gRPC** (the common shape: `MapGrpcReflectionService()` with no gRPC-Web middleware). An HTTP/1.1 request to a *mapped* gRPC route is rejected by the gRPC handler with `415` and a `Grpc-Status` trailer-as-header, and an EMPTY body; an unmapped path returns a plain `404` with no `Grpc-*` header. So `415` + the presence of `Grpc-Status` proves the reflection route exists. This is the header-based branch — the body carries no evidence here, which is exactly why a body-only predicate produced a false negative.\n2. **gRPC-Web enabled**. The request is served and the body carries the service list — matched by the JSON/regex/substring branches.",
   "createdAt": 1747526400000,
   "recordingFormatVersion": 2,
   "attack": true,
@@ -25,6 +25,7 @@
     {
       "id": "probe-1",
       "capturedAt": 1747526400000,
+      "_protocolNote": "DO NOT 'correct' protocol to 'grpc' — it would break this template. The scanner only replays HTTP-class transports (ScanCommand.IsHttpClassProtocol: REST/GRAPHQL/ODATA/HTTP/SSE/SIGNALR/SOCKETIO/MCP), and GRPC is not on that list; a 'grpc' value makes the scanner skip the probe entirely instead of running it. This probe is a plain HTTP/1.1 POST, so it rides an HTTP-class value to get replayed. Revisit once a release adds GRPC/GRPC-WEB to that list.",
       "protocol": "graphql",
       "service": "grpc.reflection.v1alpha.ServerReflection",
       "method": "ServerReflectionInfo",
@@ -44,6 +45,7 @@
       { "statusIn": [200, 415] },
       {
         "anyOf": [
+          { "headerExists": ["Grpc-Status"] },
           { "bodyJsonPath": { "path": "$.listServicesResponse.service", "exists": true } },
           { "bodyMatches": "\"name\"\\s*:\\s*\"" },
           { "bodyContains": "ServerReflection" }
