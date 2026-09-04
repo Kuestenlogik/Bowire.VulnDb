@@ -251,6 +251,18 @@ function issueBody(c) {
     // native-transport surface (MQTT) has no template shape — its probe lives
     // in the scanner. Pointing an author at `templates/mqtt/…` would send them
     // after a file the engine could never replay.
+    // The outcome the checklist used to have no box for.
+    //
+    // Every CVE that has been triaged here so far ended this way — the class
+    // was already detected by an existing template or a native probe, so the
+    // right answer was neither "author one" nor "not applicable". Six of six
+    // closed issues (#2, #5, #8, #11, #12, #18) were closed against boxes
+    // that did not describe what happened, which is how the triage record
+    // stopped being readable (#29).
+    const coveredStep = c.nativeOnly
+        ? `- [ ] If yes, but an existing probe already detects the class: name it (\`src/Kuestenlogik.Bowire.Security.Scanner/…\`), say in a comment how far the coverage goes and where it stops, and close. No new probe needed.`
+        : `- [ ] If yes, but an existing template or probe already detects the class: name it (\`templates/${c.protocol}/<name>.json\` or the probe), say in a comment how far the coverage goes and where it stops, and close. No new template needed.`;
+
     const authorStep = c.nativeOnly
         ? `- [ ] If yes: this surface has **no template shape** — a template's probe is replayed over HTTP, and ${c.protocol} reaches its native transport without an HTTP handshake. Add a native probe in [\`Kuestenlogik/Bowire\`](https://github.com/Kuestenlogik/Bowire) next to the existing \`${c.protocol}\` probes in \`src/Kuestenlogik.Bowire.Security.Scanner/\`, and close this issue with a link to that PR.`
         : `- [ ] If yes: author \`templates/${c.protocol}/<name>.json\` per [\`docs/template-schema.md\`](../blob/main/docs/template-schema.md) + [\`CONTRIBUTING.md\`](../blob/main/CONTRIBUTING.md), listing \`${c.id}\` in \`vulnerability.cve\`.`;
@@ -274,6 +286,7 @@ function issueBody(c) {
         '---',
         '',
         '- [ ] Relevant to a Bowire-probeable surface (not a library-internal bug with no request-shaped signal)?',
+        coveredStep,
         authorStep,
         '- [ ] If not: close as not-applicable (a comment on why helps the next triage).',
         '',
