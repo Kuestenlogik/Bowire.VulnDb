@@ -22,7 +22,8 @@ The probe itself is the recording's first `steps[0]` entry. The scanner replays 
 
   "vulnerability": {
     "id": "BWR-GRAPHQL-001",
-    "cve": ["CVE-2024-XXXX"],
+    "cve": [],
+    "motivatedBy": ["CVE-2024-XXXX"],
     "cwe": "CWE-200",
     "owaspApi": "API3-2023-BOPLA",
     "severity": "medium",

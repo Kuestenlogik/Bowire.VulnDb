@@ -23,7 +23,25 @@ What does NOT belong:
 Two feeds:
 
 - **Open a PR for anything you've seen in the wild** — the community feed.
-- **The monthly NVD sync** ([`scripts/nvd-sync.mjs`](scripts/nvd-sync.mjs), run by [`.github/workflows/nvd-sync.yml`](.github/workflows/nvd-sync.yml)) queries the National Vulnerability Database for freshly-published CVEs on the protocol surfaces Bowire probes (gRPC, GraphQL, MQTT, OData, SignalR, WebSocket, Socket.IO, MCP) and opens an [`nvd-sync`-labelled issue](https://github.com/Kuestenlogik/Bowire.VulnDb/issues?q=label%3Anvd-sync) for each CVE that has no template yet. Those issues are the triage queue: assess whether the CVE maps to a request-shaped, probeable signal, then either author a template (listing the CVE id in `vulnerability.cve`) or close as not-applicable. The sync never writes a template itself, deduplicates against existing issues + covering templates, and caps how many it opens per run — so picking one up is a good first contribution.
+- **The monthly NVD sync** ([`scripts/nvd-sync.mjs`](scripts/nvd-sync.mjs), run by [`.github/workflows/nvd-sync.yml`](.github/workflows/nvd-sync.yml)) queries the National Vulnerability Database for freshly-published CVEs on the protocol surfaces Bowire probes (gRPC, GraphQL, MQTT, OData, SignalR, WebSocket, Socket.IO, MCP) and opens an [`nvd-sync`-labelled issue](https://github.com/Kuestenlogik/Bowire.VulnDb/issues?q=label%3Anvd-sync) for each CVE that has no template yet. Those issues are the triage queue: assess whether the CVE maps to a request-shaped, probeable signal, then either author a template (listing the CVE id in `vulnerability.motivatedBy` — see below), name an existing template or probe that already covers the class, or close as not-applicable. The sync never writes a template itself, deduplicates against existing issues + covering templates, and caps how many it opens per run — so picking one up is a good first contribution.
+
+### CVEs: `cve` versus `motivatedBy`
+
+A template detects a **class**, not one product at one version. So a finding
+must never read as proof of a specific CVE, and the two fields say different
+things:
+
+| field | meaning |
+|---|---|
+| `vulnerability.cve` | This probe detects *that* CVE. Empty on a class template — which is almost all of them. |
+| `vulnerability.motivatedBy` | These CVEs are instances of the class this template detects. Provenance, not attribution. |
+
+Put the CVE that sent you here in `motivatedBy`. Reach for `cve` only when the
+probe would not fire against anything except that vulnerability — and if you
+have to think about it, the answer is `motivatedBy`.
+
+Both count as coverage for the monthly NVD sync, so either way the CVE stops
+being re-proposed.
 
 ## Authoring a template
 
@@ -80,7 +98,8 @@ Recommended:
 - `vulnerability.cwe` (`CWE-NNN`)
 - `vulnerability.owaspApi` (`APIn-YYYY-NAME`)
 - `vulnerability.cvss` (3.1 base score)
-- `vulnerability.cve` (list of NVD entries when applicable)
+- `vulnerability.cve` (NVD entries this probe *proves* — usually empty, see below)
+- `vulnerability.motivatedBy` (NVD entries that are instances of the class this template detects)
 - `vulnerability.references` (1-3 authoritative links — NVD entry, vendor advisory, blog write-up)
 - `vulnerability.authors` (your handle)
 - `vulnerability.introduced` (ISO-8601 date the template was first published)

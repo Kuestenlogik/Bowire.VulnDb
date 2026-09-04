@@ -8,12 +8,19 @@
   "vulnerability": {
     "id": "BWR-MCP-001",
     "cve": [],
+    "motivatedBy": [
+      "CVE-2026-49257"
+    ],
     "cwe": "CWE-306",
     "owaspApi": "API2-2023-BROKENAUTH",
     "severity": "high",
     "cvss": 8.6,
-    "protocols": ["mcp"],
-    "authors": ["thomas-stegemann"],
+    "protocols": [
+      "mcp"
+    ],
+    "authors": [
+      "thomas-stegemann"
+    ],
     "introduced": "2026-07-14",
     "references": [
       "https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization",
@@ -43,12 +50,20 @@
   ],
   "vulnerableWhen": {
     "allOf": [
-      { "status": 200 },
-      { "bodyContains": "\"tools\"" },
+      {
+        "status": 200
+      },
+      {
+        "bodyContains": "\"tools\""
+      },
       {
         "anyOf": [
-          { "bodyContains": "\"jsonrpc\"" },
-          { "bodyMatches": "\"name\"\\s*:" }
+          {
+            "bodyContains": "\"jsonrpc\""
+          },
+          {
+            "bodyMatches": "\"name\"\\s*:"
+          }
         ]
       }
     ]

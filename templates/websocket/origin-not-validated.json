@@ -8,12 +8,19 @@
   "vulnerability": {
     "id": "BWR-WEBSOCKET-001",
     "cve": [],
+    "motivatedBy": [
+      "CVE-2026-66420"
+    ],
     "cwe": "CWE-346",
     "owaspApi": "API8-2023-SECMISCONF",
     "severity": "high",
     "cvss": 7.5,
-    "protocols": ["websocket"],
-    "authors": ["thomas-stegemann"],
+    "protocols": [
+      "websocket"
+    ],
+    "authors": [
+      "thomas-stegemann"
+    ],
     "introduced": "2026-07-14",
     "references": [
       "https://cheatsheetseries.owasp.org/cheatsheets/WebSocket_Security_Cheat_Sheet.html",
@@ -31,15 +38,23 @@
       "methodType": "Unary",
       "httpVerb": "GET",
       "httpPath": "/ws",
-      "metadata": { "Origin": "https://evil.example" },
+      "metadata": {
+        "Origin": "https://evil.example"
+      },
       "messages": [],
       "status": "OK"
     }
   ],
   "vulnerableWhen": {
     "allOf": [
-      { "status": 101 },
-      { "headerExists": ["Sec-WebSocket-Accept"] }
+      {
+        "status": 101
+      },
+      {
+        "headerExists": [
+          "Sec-WebSocket-Accept"
+        ]
+      }
     ]
   }
 }

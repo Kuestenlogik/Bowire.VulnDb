@@ -111,14 +111,29 @@ async function walk(dir) {
     return out;
 }
 
+// Two fields, because "this probe proves CVE-X" and "CVE-X is why this
+// template exists" are different claims and were sharing one name.
+//
+//   vulnerability.cve         — this probe detects *that* CVE. Empty on a
+//                               class template, deliberately: a finding that
+//                               names a CVE reads as proof of it, and
+//                               "your WebSocket accepts a foreign Origin" is
+//                               not proof of CVE-2026-66420.
+//   vulnerability.motivatedBy — these CVEs are instances of the class this
+//                               template detects. Provenance, not attribution.
+//
+// Both count as coverage for the sync's purposes: a CVE that motivated a
+// template has been assessed, and re-proposing it wastes the attention the
+// cap exists to protect. Nothing renders motivatedBy into a finding.
 async function coveredCveIds() {
     const covered = new Set();
     for (const file of await walk(TEMPLATES_DIR)) {
         try {
             const doc = JSON.parse(await readFile(file, 'utf8'));
-            const cves = doc?.vulnerability?.cve;
-            if (Array.isArray(cves)) {
-                for (const c of cves) if (typeof c === 'string') covered.add(c.toUpperCase());
+            for (const key of ['cve', 'motivatedBy']) {
+                const ids = doc?.vulnerability?.[key];
+                if (!Array.isArray(ids)) continue;
+                for (const c of ids) if (typeof c === 'string') covered.add(c.toUpperCase());
             }
         } catch {
             // A malformed template shouldn't sink the sync — skip it.
@@ -261,11 +276,11 @@ function issueBody(c) {
     // stopped being readable (#29).
     const coveredStep = c.nativeOnly
         ? `- [ ] If yes, but an existing probe already detects the class: name it (\`src/Kuestenlogik.Bowire.Security.Scanner/…\`), say in a comment how far the coverage goes and where it stops, and close. No new probe needed.`
-        : `- [ ] If yes, but an existing template or probe already detects the class: name it (\`templates/${c.protocol}/<name>.json\` or the probe), say in a comment how far the coverage goes and where it stops, and close. No new template needed.`;
+        : `- [ ] If yes, but an existing template or probe already detects the class: name it (\`templates/${c.protocol}/<name>.json\` or the probe), add \`${c.id}\` to its \`vulnerability.motivatedBy\`, say in a comment how far the coverage goes and where it stops, and close. No new template needed.`;
 
     const authorStep = c.nativeOnly
         ? `- [ ] If yes: this surface has **no template shape** — a template's probe is replayed over HTTP, and ${c.protocol} reaches its native transport without an HTTP handshake. Add a native probe in [\`Kuestenlogik/Bowire\`](https://github.com/Kuestenlogik/Bowire) next to the existing \`${c.protocol}\` probes in \`src/Kuestenlogik.Bowire.Security.Scanner/\`, and close this issue with a link to that PR.`
-        : `- [ ] If yes: author \`templates/${c.protocol}/<name>.json\` per [\`docs/template-schema.md\`](../blob/main/docs/template-schema.md) + [\`CONTRIBUTING.md\`](../blob/main/CONTRIBUTING.md), listing \`${c.id}\` in \`vulnerability.cve\`.`;
+        : `- [ ] If yes: author \`templates/${c.protocol}/<name>.json\` per [\`docs/template-schema.md\`](../blob/main/docs/template-schema.md) + [\`CONTRIBUTING.md\`](../blob/main/CONTRIBUTING.md), listing \`${c.id}\` in \`vulnerability.motivatedBy\` — **not** \`vulnerability.cve\`, which claims the probe proves that specific CVE.`;
 
     const lede = c.nativeOnly
         ? `A recently-published CVE matched the **${c.protocol}** keyword search. ${c.protocol.toUpperCase()} coverage lives as native scanner probes (not templates — see below), so triage whether this CVE warrants a new probe; otherwise close as not-applicable.`

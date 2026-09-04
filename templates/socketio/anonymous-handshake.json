@@ -8,12 +8,19 @@
   "vulnerability": {
     "id": "BWR-SOCKETIO-001",
     "cve": [],
+    "motivatedBy": [
+      "CVE-2026-68502"
+    ],
     "cwe": "CWE-306",
     "owaspApi": "API2-2023-BROKENAUTH",
     "severity": "medium",
     "cvss": 5.3,
-    "protocols": ["socketio"],
-    "authors": ["thomas-stegemann"],
+    "protocols": [
+      "socketio"
+    ],
+    "authors": [
+      "thomas-stegemann"
+    ],
     "introduced": "2026-07-14",
     "references": [
       "https://socket.io/docs/v4/engine-io-protocol/",
@@ -31,19 +38,29 @@
       "methodType": "Unary",
       "httpVerb": "GET",
       "httpPath": "/socket.io/?EIO=4&transport=polling",
-      "metadata": { "Accept": "*/*" },
+      "metadata": {
+        "Accept": "*/*"
+      },
       "messages": [],
       "status": "OK"
     }
   ],
   "vulnerableWhen": {
     "allOf": [
-      { "status": 200 },
-      { "bodyMatches": "\"sid\"\\s*:" },
+      {
+        "status": 200
+      },
+      {
+        "bodyMatches": "\"sid\"\\s*:"
+      },
       {
         "anyOf": [
-          { "bodyContains": "upgrades" },
-          { "bodyContains": "pingInterval" }
+          {
+            "bodyContains": "upgrades"
+          },
+          {
+            "bodyContains": "pingInterval"
+          }
         ]
       }
     ]
