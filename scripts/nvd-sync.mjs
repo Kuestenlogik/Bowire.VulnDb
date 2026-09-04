@@ -44,7 +44,7 @@
  * Flags: --dry-run (force no writes, print the plan).
  */
 
-import { readdir, readFile } from 'node:fs/promises';
+import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const REPO_ROOT = new URL('..', import.meta.url).pathname.replace(/^\/([A-Z]:\/)/, '$1');
@@ -281,7 +281,11 @@ function issueBody(c) {
         '',
         '**NVD description**',
         '',
-        '> ' + englishDesc(c.raw).replace(/\n+/g, ' ').slice(0, 900),
+        // `description` is resolved when the candidate is first seen and
+        // travels with it through the ledger. `raw` exists only on the run
+        // that fetched it, and englishDesc would throw on undefined — so a
+        // carried-forward candidate must not depend on it.
+        '> ' + (c.description || englishDesc(c.raw || {})).replace(/\n+/g, ' ').slice(0, 900),
         '',
         '---',
         '',
@@ -292,6 +296,56 @@ function issueBody(c) {
         '',
         `<sub>Opened automatically by \`scripts/nvd-sync.mjs\`. Re-runs skip any CVE that already has an \`${LABEL}\` issue or a covering template.</sub>`,
     ].join('\n');
+}
+
+// ---- the carry-forward ledger --------------------------------------------
+//
+// The cap limits how many issues a run opens. It used to also decide which
+// candidates ever get looked at, because the next run's window starts `days`
+// before *itself* — so anything the cap left behind fell out of scope
+// permanently. On the run of 2026-09-01 that was 103 of 111 candidates,
+// discarded with no record of which ones.
+//
+// "We chose not to open these yet" and "these no longer exist" are different
+// statements, and they should not be the same operation. The tail is written
+// here instead, and merged back into the next run's pool before sorting. The
+// cap keeps doing its real job — protecting the issue tracker from a hundred
+// library-internal CVEs at once — without deciding what is knowable.
+
+const PENDING_FILE = 'nvd-pending.json';
+
+// How long an un-opened candidate stays in the ledger. A CVE that has sat
+// below the cap for half a year is one the severity sort has passed over six
+// times; keeping it forever would grow the file without ever changing an
+// outcome. Ageing out is still a decision, but it is a logged one.
+const PENDING_MAX_AGE_DAYS = Number(process.env.NVD_SYNC_PENDING_DAYS || 180);
+
+async function readPending() {
+    try {
+        const text = await readFile(PENDING_FILE, 'utf8');
+        const doc = JSON.parse(text);
+        return Array.isArray(doc.candidates) ? doc.candidates : [];
+    } catch (err) {
+        if (err.code !== 'ENOENT') console.warn(`  ! ${PENDING_FILE}: ${err.message}`);
+        return [];
+    }
+}
+
+async function writePending(candidates, agedOut) {
+    // `raw` is the whole NVD record — useful while a candidate is being turned
+    // into an issue body, far too large to carry in a file that accumulates.
+    // Everything the next run needs to re-rank and re-render is kept.
+    const slim = candidates.map(({ id, protocol, keyword, nativeOnly, published, score, severity, description }) => ({
+        id, protocol, keyword, nativeOnly, published, score, severity, description,
+    }));
+    const doc = {
+        note: 'Candidates seen by scripts/nvd-sync.mjs but not opened yet — the cap limits '
+            + 'issues per run, not what stays knowable. Merged back into the next run before '
+            + `sorting. Entries age out after ${PENDING_MAX_AGE_DAYS} days.`,
+        agedOutLastRun: agedOut,
+        candidates: slim.sort((a, b) => (b.score - a.score) || (b.published < a.published ? -1 : 1)),
+    };
+    await writeFile(PENDING_FILE, JSON.stringify(doc, null, 2) + '\n', 'utf8');
 }
 
 async function createIssue(c) {
@@ -337,7 +391,16 @@ async function main() {
             const { score, severity } = bestScore(cve);
             if (score === null || score < MIN_CVSS) continue;
             seen.add(id);
-            candidates.push({ id, protocol, keyword, nativeOnly, published: cve.published || '', score, severity, raw: cve });
+            // The description is resolved here rather than at render time:
+            // a candidate carried forward in the ledger has no `raw` to read
+            // it from, and a body that silently loses its NVD text on the
+            // second run would be worse than not carrying it at all.
+            candidates.push({
+                id, protocol, keyword, nativeOnly,
+                published: cve.published || '', score, severity,
+                description: englishDesc(cve),
+                raw: cve,
+            });
             kept++;
         }
         console.log(`  ${keyword}: ${cves.length} CVE(s) in window, ${kept} new candidate(s).`);
@@ -345,13 +408,33 @@ async function main() {
         await sleep(NVD_KEY ? 800 : 6500);
     }
 
-    // Highest-severity first, then newest, then capped.
-    candidates.sort((a, b) => (b.score - a.score) || (b.published < a.published ? -1 : 1));
-    const planned = candidates.slice(0, MAX_ISSUES);
+    // Everything a previous run saw and did not open, back in the pool. The
+    // ledger is filtered against covered/tracked here too: a candidate can
+    // have been triaged by hand, or covered by a template written since, and
+    // re-proposing it would waste the very attention the cap protects.
+    const carried = (await readPending()).filter(
+        c => c.id && !seen.has(c.id) && !covered.has(c.id) && !tracked.has(c.id));
+    for (const c of carried) seen.add(c.id);
+    if (carried.length) console.log(`\n${carried.length} candidate(s) carried forward from a previous run.`);
 
-    console.log(`\n${candidates.length} candidate(s); opening ${planned.length}${candidates.length > planned.length ? ` (capped at ${MAX_ISSUES}; ${candidates.length - planned.length} NOT opened — see the note below)` : ''}:`);
+    const cutoff = new Date(now.getTime() - PENDING_MAX_AGE_DAYS * 86400 * 1000).toISOString();
+    const fresh = [...candidates, ...carried];
+    const aged = fresh.filter(c => c.published && c.published < cutoff);
+    const pool = fresh.filter(c => !(c.published && c.published < cutoff));
+    if (aged.length) {
+        console.log(`${aged.length} candidate(s) aged out after ${PENDING_MAX_AGE_DAYS}d without ever clearing the cap:`);
+        for (const c of aged.slice(0, 10)) console.log(`    ${c.id}  CVSS ${c.score}  ${c.protocol}`);
+        if (aged.length > 10) console.log(`    … and ${aged.length - 10} more`);
+    }
+
+    // Highest-severity first, then newest, then capped.
+    pool.sort((a, b) => (b.score - a.score) || (b.published < a.published ? -1 : 1));
+    const planned = pool.slice(0, MAX_ISSUES);
+
+    console.log(`\n${pool.length} candidate(s); opening ${planned.length}${pool.length > planned.length ? ` (capped at ${MAX_ISSUES}; ${pool.length - planned.length} carried to the next run)` : ''}:`);
     if (planned.length === 0) {
         console.log('  (nothing to open)');
+        if (!DRY_RUN) await writePending(pool, aged.length);
         return;
     }
 
@@ -366,15 +449,17 @@ async function main() {
         }
     }
 
-    if (candidates.length > planned.length) {
-        const dropped = candidates.length - planned.length;
+    const remainder = pool.slice(planned.length);
+    if (!DRY_RUN) await writePending(remainder, aged.length);
+
+    if (remainder.length > 0) {
         const lowest = planned.at(-1)?.score;
         console.log(
-            `\nNote: ${dropped} candidate(s) below CVSS ${lowest} were NOT opened (cap ${MAX_ISSUES}/run) and the next scheduled run will NOT surface them —\n` +
-            `      its lookback window starts ${DAYS}d before *that* run, so today's un-opened tail falls out of scope permanently.\n` +
-            `      This is a deliberate signal/noise trade-off: keyword matches are dominated by library-internal CVEs with no\n` +
-            `      request-shaped probe, so the sync files only the top ${MAX_ISSUES} by severity. To reach the tail, dispatch the\n` +
-            `      workflow manually with a larger 'days' window and NVD_SYNC_MAX_ISSUES / NVD_SYNC_MIN_CVSS raised.`);
+            `\nNote: ${remainder.length} candidate(s) below CVSS ${lowest} were not opened (cap ${MAX_ISSUES}/run).\n` +
+            `      They are recorded in ${PENDING_FILE} and re-enter the pool on the next run — the cap limits how many\n` +
+            `      issues a run files, not what stays knowable. Keyword matches are dominated by library-internal CVEs\n` +
+            `      with no request-shaped probe, which is what the cap is protecting the tracker from.\n` +
+            `      To drain faster, dispatch the workflow with NVD_SYNC_MAX_ISSUES raised.`);
     }
 }
 

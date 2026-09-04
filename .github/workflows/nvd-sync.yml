@@ -34,7 +34,11 @@ on:
 
 permissions:
   issues: write
-  contents: read
+  # The run records the candidates the cap left behind in nvd-pending.json and
+  # commits it, so they re-enter the next run's pool instead of falling out of
+  # the lookback window. Without write access the tail would be discarded
+  # again — silently, which is what it used to do.
+  contents: write
 
 concurrency:
   group: nvd-sync
@@ -62,3 +66,23 @@ jobs:
           else
             node scripts/nvd-sync.mjs
           fi
+
+      # The ledger only works if it survives the run that wrote it. A dry run
+      # never writes one, and a run that opened everything it found leaves the
+      # file unchanged — both end here with nothing to do, which is why this
+      # checks for a diff rather than committing unconditionally.
+      - name: Commit the carry-forward ledger
+        if: ${{ github.event.inputs.dry-run != 'true' }}
+        run: |
+          if git diff --quiet -- nvd-pending.json; then
+            echo "No change to nvd-pending.json."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add nvd-pending.json
+          git commit -m "chore(nvd-sync): carry forward the candidates the cap did not open
+
+          Written by scripts/nvd-sync.mjs. These re-enter the pool on the next
+          run — the cap limits issues per run, not what stays knowable."
+          git push
