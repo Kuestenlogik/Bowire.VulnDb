@@ -19,11 +19,22 @@ name: Validate templates
 on:
   push:
     branches: [main]
+  # No `paths:` filter, deliberately. Both jobs below are REQUIRED status
+  # checks on main, and a required check that is path-filtered cannot
+  # report on a pull request outside the filter -- it is never queued, so
+  # it sits pending forever and the PR can never merge. That is not a
+  # theoretical edge: #31, which propagated the cascade's dotnet-new
+  # template resolution, touches only
+  # .github/workflows/bowire-released.yml. Its auto-merge was queued and
+  # then waited on two checks that were never going to be scheduled.
+  #
+  # Adding '.github/workflows/**' would have unblocked that one PR and
+  # left the same trap one path over, for the next docs-only or
+  # scripts-only change. A required check has to be able to run on every
+  # pull request that can be opened, so the filter comes off entirely.
+  # The run costs ~40s, which is not worth a class of unmergeable PRs.
   pull_request:
     branches: [main]
-    paths:
-      - 'templates/**'
-      - '.github/workflows/validate.yml'
   schedule:
     # Sunday 03:00 UTC — picks up drift between the scanner / sample /
     # corpus when none of the three has had a PR in a while.
