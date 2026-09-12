@@ -1,0 +1,35 @@
+version: 2
+
+# NuGet + the workflow pins. One project (Kuestenlogik.Bowire.VulnDb) plus the
+# template corpus it ships; the package pins were watched by nobody.
+#
+# Kuestenlogik.Bowire* is left to the release cascade, which owns that bump
+# across every sibling repo — two bumpers for one dependency means two PRs
+# racing over the same line.
+
+updates:
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    ignore:
+      - dependency-name: "Kuestenlogik.Bowire*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(actions)"
