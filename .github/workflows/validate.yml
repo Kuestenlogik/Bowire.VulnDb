@@ -46,7 +46,7 @@ jobs:
     name: Schema validation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-dotnet@v6
         with:
@@ -84,7 +84,7 @@ jobs:
     name: Positive — must fire against vulnerable sample
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-dotnet@v6
         with:
@@ -94,7 +94,7 @@ jobs:
         run: dotnet tool install -g Kuestenlogik.Bowire.Tool
 
       - name: Check out vulnerable sample
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: Kuestenlogik/Bowire.Samples
           path: bowire-samples
