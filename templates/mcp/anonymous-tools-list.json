@@ -9,7 +9,8 @@
     "id": "BWR-MCP-001",
     "cve": [],
     "motivatedBy": [
-      "CVE-2026-49257"
+      "CVE-2026-49257",
+      "CVE-2026-77244"
     ],
     "cwe": "CWE-306",
     "owaspApi": "API2-2023-BROKENAUTH",

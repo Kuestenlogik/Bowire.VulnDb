@@ -9,7 +9,8 @@
     "id": "BWR-SOCKETIO-001",
     "cve": [],
     "motivatedBy": [
-      "CVE-2026-68502"
+      "CVE-2026-68502",
+      "CVE-2026-103244"
     ],
     "cwe": "CWE-306",
     "owaspApi": "API2-2023-BROKENAUTH",
