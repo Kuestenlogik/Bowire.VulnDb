@@ -60,6 +60,9 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
           NVD_SYNC_DAYS: ${{ github.event.inputs.days || '30' }}
+          # Every opened issue starts here, so Bowire's board guard takes it as
+          # not planned yet rather than as unplanned work.
+          NVD_SYNC_MILESTONE: 'Triage — new CVEs'
         run: |
           if [ "${{ github.event.inputs.dry-run }}" = "true" ]; then
             node scripts/nvd-sync.mjs --dry-run

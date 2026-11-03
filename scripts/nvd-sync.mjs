@@ -40,6 +40,10 @@
  *   NVD_SYNC_DAYS       lookback window in days (default 30, NVD max 120).
  *   NVD_SYNC_MIN_CVSS   only surface CVEs at/above this base score (default 4.0).
  *   NVD_SYNC_MAX_ISSUES cap on issues opened per run (default 8) — flood guard.
+ *   NVD_SYNC_MILESTONE  the triage milestone every opened issue goes into (`Triage — new CVEs`
+ *                       in the workflow); created when missing. Bowire's daily board guard
+ *                       accepts an open ticket there without a planned release
+ *                       (Kuestenlogik/Bowire docs/contributing/project-board.md). Unset → none.
  *
  * Flags: --dry-run (force no writes, print the plan).
  */
@@ -56,6 +60,7 @@ const NVD_KEY = process.env.NVD_API_KEY || '';
 const DAYS = clampInt(process.env.NVD_SYNC_DAYS, 30, 1, 120);
 const MIN_CVSS = Number(process.env.NVD_SYNC_MIN_CVSS ?? 4.0);
 const MAX_ISSUES = clampInt(process.env.NVD_SYNC_MAX_ISSUES, 8, 1, 50);
+const MILESTONE = (process.env.NVD_SYNC_MILESTONE || '').trim() || null;
 const DRY_RUN = process.argv.includes('--dry-run') || !TOKEN;
 
 const LABEL = 'nvd-sync';
@@ -255,6 +260,28 @@ async function ensureLabel() {
     }
 }
 
+/** The number of the open triage milestone, created when missing; null when none is configured. */
+async function ensureMilestone() {
+    if (!MILESTONE) return null;
+    for (let page = 1; page <= 10; page++) {
+        const res = await gh(`/repos/${REPO}/milestones?state=open&per_page=100&page=${page}`);
+        if (!res.ok) throw new Error(`GitHub milestone list ${res.status}: ${res.statusText}`);
+        const milestones = await res.json();
+        const found = milestones.find(m => m.title === MILESTONE);
+        if (found) return found.number;
+        if (milestones.length < 100) break;
+    }
+    const create = await gh(`/repos/${REPO}/milestones`, {
+        method: 'POST',
+        body: JSON.stringify({
+            title: MILESTONE,
+            description: 'CVEs the NVD sync opened, until each is closed or planned into a release.',
+        }),
+    });
+    if (!create.ok) throw new Error(`GitHub milestone create ${create.status}: ${create.statusText}`);
+    return (await create.json()).number;
+}
+
 function issueTitle(c) {
     return c.nativeOnly
         ? `${c.id} — needs a ${c.protocol} probe?`
@@ -363,10 +390,12 @@ async function writePending(candidates, agedOut) {
     await writeFile(PENDING_FILE, JSON.stringify(doc, null, 2) + '\n', 'utf8');
 }
 
-async function createIssue(c) {
+async function createIssue(c, milestone) {
+    const request = { title: issueTitle(c), body: issueBody(c), labels: [LABEL] };
+    if (milestone !== null) request.milestone = milestone;
     const res = await gh(`/repos/${REPO}/issues`, {
         method: 'POST',
-        body: JSON.stringify({ title: issueTitle(c), body: issueBody(c), labels: [LABEL] }),
+        body: JSON.stringify(request),
     });
     if (!res.ok) throw new Error(`GitHub issue create ${res.status} for ${c.id}: ${res.statusText}`);
     const issue = await res.json();
@@ -454,12 +483,13 @@ async function main() {
     }
 
     if (!DRY_RUN) await ensureLabel();
+    const milestone = DRY_RUN ? null : await ensureMilestone();
 
     for (const c of planned) {
         if (DRY_RUN) {
             console.log(`  [dry-run] ${c.id}  ${String(c.score).padStart(4)} ${c.severity ?? ''}  →  ${issueTitle(c)}`);
         } else {
-            const url = await createIssue(c);
+            const url = await createIssue(c, milestone);
             console.log(`  opened ${c.id} → ${url}`);
         }
     }
