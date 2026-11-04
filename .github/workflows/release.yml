@@ -25,6 +25,7 @@ on:
 permissions:
   contents: write   # GitHub Release creation + asset upload
   packages: write   # nuget push to GitHub Packages
+  id-token: write  # Trusted Publishing: OIDC token exchanged for a one-hour nuget.org key
 
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
@@ -35,8 +36,6 @@ jobs:
   release:
     runs-on: ubuntu-latest
 
-    env:
-      NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
 
     steps:
       - uses: actions/checkout@v7
@@ -112,12 +111,21 @@ jobs:
             templates templates-index.json README.md LICENSE
           ls -la ./artifacts/
 
-      # NuGet push — nuget.org (gated on secret) + GitHub Packages.
+      # nuget.org, through Trusted Publishing (no stored key): the policy on
+      # nuget.org trusts this repository's release.yml.
+      # The temporary key lives one hour, so it is fetched right before the push.
+      - name: nuget.org login (OIDC → temporary API key)
+        if: ${{ github.ref_type == 'tag' && vars.NUGET_USER != '' }}
+        id: nuget-login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: ${{ vars.NUGET_USER }}
+
       - name: Push to nuget.org
-        if: ${{ github.ref_type == 'tag' && env.NUGET_API_KEY != '' }}
+        if: ${{ github.ref_type == 'tag' && vars.NUGET_USER != '' }}
         run: |
           dotnet nuget push './artifacts/*.nupkg' \
-            --api-key "${NUGET_API_KEY}" \
+            --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
 
